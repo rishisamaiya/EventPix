@@ -165,6 +165,7 @@ export default async function EventDetailPage({
       <EventPhotos
         eventId={event.id}
         initialPhotos={photos ?? []}
+        isGoogleConnected={!!event.cloud_config?.access_token}
       />
     </div>
   );

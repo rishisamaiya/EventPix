@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { ImageIcon, ScanFace, Trash2 } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ImageIcon, ScanFace, Trash2, HardDrive, Upload } from "lucide-react";
 import { PhotoUploader } from "@/components/photo-uploader";
+import { GoogleDrivePicker } from "@/components/google-drive-picker";
 import { createClient } from "@/lib/supabase/client";
 
 type Photo = {
@@ -12,17 +13,21 @@ type Photo = {
   thumbnail_url: string | null;
   faces_indexed: boolean;
   face_count: number;
+  drive_file_id?: string;
 };
 
 export function EventPhotos({
   eventId,
   initialPhotos,
+  isGoogleConnected,
 }: {
   eventId: string;
   initialPhotos: Photo[];
+  isGoogleConnected: boolean;
 }) {
   const [photos, setPhotos] = useState(initialPhotos);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [sourceTab, setSourceTab] = useState<"drive" | "upload">("drive");
   const router = useRouter();
   const supabase = createClient();
 
@@ -46,15 +51,49 @@ export function EventPhotos({
       <div className="mb-6 flex items-center justify-between">
         <h2 className="text-lg font-semibold">Photos</h2>
         <span className="text-sm text-muted-foreground">
-          {photos.length} uploaded
+          {photos.length} total
         </span>
       </div>
 
-      {/* Photo Uploader */}
-      <PhotoUploader
-        eventId={eventId}
-        onComplete={() => router.refresh()}
-      />
+      {/* Source Tabs */}
+      <div className="mb-4 flex gap-2">
+        <button
+          onClick={() => setSourceTab("drive")}
+          className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
+            sourceTab === "drive"
+              ? "bg-blue-50 text-blue-700 border border-blue-200"
+              : "bg-muted text-muted-foreground hover:bg-muted/80"
+          }`}
+        >
+          <HardDrive className="h-4 w-4" />
+          Google Drive
+        </button>
+        <button
+          onClick={() => setSourceTab("upload")}
+          className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
+            sourceTab === "upload"
+              ? "bg-primary/10 text-primary border border-primary/20"
+              : "bg-muted text-muted-foreground hover:bg-muted/80"
+          }`}
+        >
+          <Upload className="h-4 w-4" />
+          Direct Upload
+          <span className="rounded bg-yellow-100 px-1.5 py-0.5 text-[10px] font-bold text-yellow-700">
+            1GB LIMIT
+          </span>
+        </button>
+      </div>
+
+      {/* Source Content */}
+      {sourceTab === "drive" ? (
+        <GoogleDrivePicker
+          eventId={eventId}
+          isConnected={isGoogleConnected}
+          onImportComplete={() => router.refresh()}
+        />
+      ) : (
+        <PhotoUploader eventId={eventId} onComplete={() => router.refresh()} />
+      )}
 
       {/* Existing Photos Grid */}
       {photos.length > 0 && (
@@ -78,7 +117,13 @@ export function EventPhotos({
                   alt=""
                   className="h-full w-full object-cover"
                   loading="lazy"
+                  referrerPolicy="no-referrer"
                 />
+                {photo.drive_file_id && (
+                  <div className="absolute left-1 top-1">
+                    <HardDrive className="h-3 w-3 text-white drop-shadow" />
+                  </div>
+                )}
                 {photo.faces_indexed && (
                   <div className="absolute bottom-0 inset-x-0 bg-black/60 px-1.5 py-0.5 text-center">
                     <span className="text-[10px] text-white">
@@ -103,7 +148,9 @@ export function EventPhotos({
         <div className="mt-4 flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border py-10">
           <ImageIcon className="mb-2 h-10 w-10 text-muted-foreground/50" />
           <p className="text-sm text-muted-foreground">
-            Upload photos above to get started
+            {sourceTab === "drive"
+              ? "Connect Google Drive to import photos"
+              : "Upload photos above to get started"}
           </p>
         </div>
       )}
