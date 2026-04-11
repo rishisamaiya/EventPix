@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Share2,
   ScanFace,
@@ -11,7 +11,10 @@ import {
   Search,
   X,
   ImageIcon,
+  Loader2,
+  Check,
 } from "lucide-react";
+import { SelfieCapture } from "@/components/selfie-capture";
 
 type Photo = {
   id: string;
@@ -19,6 +22,8 @@ type Photo = {
   thumbnail_url: string | null;
   face_count: number;
 };
+
+type MatchedPhoto = Photo & { similarity?: number };
 
 type Event = {
   id: string;
@@ -41,9 +46,14 @@ export function GuestGallery({
   const [pinVerified, setPinVerified] = useState(!event.pin_code);
   const [pinInput, setPinInput] = useState("");
   const [pinError, setPinError] = useState(false);
-  const [showSelfiePrompt, setShowSelfiePrompt] = useState(false);
-  const [myPhotos, setMyPhotos] = useState<Photo[]>([]);
+  const [showSelfie, setShowSelfie] = useState(false);
+  const [matchLoading, setMatchLoading] = useState(false);
+  const [matchLoadingText, setMatchLoadingText] = useState("");
+  const [myPhotos, setMyPhotos] = useState<MatchedPhoto[]>([]);
+  const [hasSearched, setHasSearched] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
+  const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
+  const [selectionMode, setSelectionMode] = useState(false);
 
   function verifyPin() {
     if (pinInput === event.pin_code) {
@@ -54,6 +64,79 @@ export function GuestGallery({
     }
   }
 
+  async function handleSelfieCapture(
+    _imageData: string,
+    imageElement: HTMLImageElement
+  ) {
+    setMatchLoading(true);
+    setMatchLoadingText("Loading AI models...");
+
+    try {
+      const { loadModels, getSingleFaceDescriptor, descriptorToArray } =
+        await import("@/lib/face-detection");
+
+      await loadModels();
+      setMatchLoadingText("Analyzing your face...");
+
+      const descriptor = await getSingleFaceDescriptor(imageElement);
+      if (!descriptor) {
+        alert("No face detected. Please try again with a clearer selfie.");
+        setMatchLoading(false);
+        setShowSelfie(false);
+        return;
+      }
+
+      setMatchLoadingText("Searching through event photos...");
+      const embedding = descriptorToArray(descriptor);
+
+      const response = await fetch("/api/match-faces", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          embedding,
+          eventId: event.id,
+          threshold: 0.55,
+          limit: 200,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.matches && data.matches.length > 0) {
+        setMyPhotos(data.matches);
+      } else {
+        setMyPhotos([]);
+      }
+
+      setHasSearched(true);
+      setShowSelfie(false);
+      setActiveTab("my");
+    } catch (err) {
+      console.error("Face matching error:", err);
+      alert("Something went wrong. Please try again.");
+    } finally {
+      setMatchLoading(false);
+    }
+  }
+
+  function togglePhotoSelection(photoId: string) {
+    setSelectedPhotos((prev) => {
+      const next = new Set(prev);
+      if (next.has(photoId)) next.delete(photoId);
+      else next.add(photoId);
+      return next;
+    });
+  }
+
+  function shareViaWhatsApp() {
+    const url = window.location.href;
+    const text = encodeURIComponent(
+      `Check out the photos from ${event.name}! Find your photos with a selfie: ${url}`
+    );
+    window.open(`https://wa.me/?text=${text}`, "_blank");
+  }
+
+  // --- PIN SCREEN ---
   if (!pinVerified) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black px-4">
@@ -97,8 +180,24 @@ export function GuestGallery({
     );
   }
 
+  // --- GALLERY ---
+  const displayPhotos = activeTab === "official" ? photos : myPhotos;
+
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white pb-20">
+      {/* Selfie Capture Modal */}
+      {showSelfie && (
+        <SelfieCapture
+          onCapture={handleSelfieCapture}
+          onClose={() => {
+            setShowSelfie(false);
+            setMatchLoading(false);
+          }}
+          loading={matchLoading}
+          loadingText={matchLoadingText}
+        />
+      )}
+
       {/* Hero / Cover */}
       <div className="relative">
         {event.cover_url ? (
@@ -111,16 +210,15 @@ export function GuestGallery({
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
           </div>
         ) : (
-          <div className="flex h-[40vh] items-center justify-center bg-gradient-to-br from-primary/20 via-accent to-primary/10">
-            <Camera className="h-20 w-20 text-primary/30" />
+          <div className="flex h-[40vh] items-center justify-center bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100">
+            <Camera className="h-20 w-20 text-indigo-300" />
           </div>
         )}
 
         <div className="absolute inset-x-0 bottom-0 p-6 text-center">
           <button
             onClick={() => {
-              setActiveTab("my");
-              setShowSelfiePrompt(true);
+              setShowSelfie(true);
             }}
             className="mb-4 inline-flex items-center gap-2 rounded-xl border border-white/40 bg-white/20 px-6 py-3 text-sm font-semibold text-white backdrop-blur-md transition hover:bg-white/30"
           >
@@ -140,6 +238,12 @@ export function GuestGallery({
             <ImageIcon className="h-4 w-4" />
             {event.photo_count} Photos
           </span>
+          {hasSearched && activeTab === "my" && (
+            <span className="flex items-center gap-1 text-primary">
+              <ScanFace className="h-4 w-4" />
+              {myPhotos.length} matches
+            </span>
+          )}
         </div>
         <div className="mt-2">
           <ChevronDown className="mx-auto h-6 w-6 animate-bounce text-gray-300" />
@@ -162,7 +266,7 @@ export function GuestGallery({
           <button
             onClick={() => {
               setActiveTab("my");
-              if (myPhotos.length === 0) setShowSelfiePrompt(true);
+              if (!hasSearched) setShowSelfie(true);
             }}
             className={`border-b-2 px-4 py-3 text-sm font-semibold transition ${
               activeTab === "my"
@@ -171,66 +275,84 @@ export function GuestGallery({
             }`}
           >
             MY PHOTOS
+            {hasSearched && myPhotos.length > 0 && (
+              <span className="ml-1.5 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                {myPhotos.length}
+              </span>
+            )}
           </button>
         </div>
-        <button className="p-2 text-gray-400 hover:text-gray-600">
-          <Search className="h-5 w-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          {activeTab === "my" && hasSearched && (
+            <button
+              onClick={() => setShowSelfie(true)}
+              className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              title="Retake selfie"
+            >
+              <Camera className="h-5 w-5" />
+            </button>
+          )}
+          <button className="p-2 text-gray-400 hover:text-gray-600">
+            <Search className="h-5 w-5" />
+          </button>
+        </div>
       </div>
 
       {/* Gallery Grid */}
-      <div className="px-1 py-1">
-        {activeTab === "official" ? (
-          photos.length > 0 ? (
-            <div className="grid grid-cols-3 gap-0.5">
-              {photos.map((photo) => (
-                <button
-                  key={photo.id}
-                  onClick={() => setSelectedPhoto(photo)}
-                  className="relative aspect-square overflow-hidden bg-gray-100"
-                >
-                  <img
-                    src={photo.thumbnail_url || photo.source_url}
-                    alt=""
-                    className="h-full w-full object-cover"
-                    loading="lazy"
-                  />
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center py-20 text-gray-400">
-              <ImageIcon className="mb-3 h-12 w-12" />
-              <p>No photos uploaded yet</p>
-            </div>
-          )
-        ) : showSelfiePrompt ? (
+      <div className="px-0.5 py-0.5">
+        {activeTab === "my" && !hasSearched ? (
           <div className="flex flex-col items-center py-20">
-            <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+            <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-indigo-50">
               <ScanFace className="h-10 w-10 text-primary" />
             </div>
             <h3 className="mb-2 text-lg font-semibold">Find Your Photos</h3>
             <p className="mb-6 max-w-xs text-center text-sm text-gray-500">
               Take a selfie and we&apos;ll use AI to find every photo you appear
-              in.
+              in — instantly.
             </p>
             <button
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground transition hover:bg-primary/90"
-              onClick={() => {
-                // Face recognition will be implemented in Phase 3
-                alert("Face recognition coming soon! We're building this feature.");
-              }}
+              onClick={() => setShowSelfie(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-semibold text-white transition hover:bg-primary/90"
             >
               <Camera className="h-5 w-5" />
               Take a Selfie
             </button>
           </div>
-        ) : myPhotos.length > 0 ? (
+        ) : activeTab === "my" && hasSearched && myPhotos.length === 0 ? (
+          <div className="flex flex-col items-center py-20">
+            <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-gray-100">
+              <ScanFace className="h-10 w-10 text-gray-400" />
+            </div>
+            <h3 className="mb-2 text-lg font-semibold">No matches found</h3>
+            <p className="mb-6 max-w-xs text-center text-sm text-gray-500">
+              We couldn&apos;t find you in the event photos. Try again with a
+              clearer selfie.
+            </p>
+            <button
+              onClick={() => setShowSelfie(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-semibold text-white transition hover:bg-primary/90"
+            >
+              <Camera className="h-5 w-5" />
+              Try Again
+            </button>
+          </div>
+        ) : displayPhotos.length > 0 ? (
           <div className="grid grid-cols-3 gap-0.5">
-            {myPhotos.map((photo) => (
+            {displayPhotos.map((photo) => (
               <button
                 key={photo.id}
-                onClick={() => setSelectedPhoto(photo)}
+                onClick={() => {
+                  if (selectionMode) {
+                    togglePhotoSelection(photo.id);
+                  } else {
+                    setSelectedPhoto(photo);
+                  }
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setSelectionMode(true);
+                  togglePhotoSelection(photo.id);
+                }}
                 className="relative aspect-square overflow-hidden bg-gray-100"
               >
                 <img
@@ -239,26 +361,58 @@ export function GuestGallery({
                   className="h-full w-full object-cover"
                   loading="lazy"
                 />
+                {selectionMode && (
+                  <div
+                    className={`absolute inset-0 flex items-center justify-center transition ${
+                      selectedPhotos.has(photo.id)
+                        ? "bg-primary/30"
+                        : "bg-black/10"
+                    }`}
+                  >
+                    <div
+                      className={`flex h-6 w-6 items-center justify-center rounded-full border-2 ${
+                        selectedPhotos.has(photo.id)
+                          ? "border-primary bg-primary"
+                          : "border-white bg-white/50"
+                      }`}
+                    >
+                      {selectedPhotos.has(photo.id) && (
+                        <Check className="h-4 w-4 text-white" />
+                      )}
+                    </div>
+                  </div>
+                )}
               </button>
             ))}
           </div>
-        ) : null}
+        ) : (
+          <div className="flex flex-col items-center py-20 text-gray-400">
+            <ImageIcon className="mb-3 h-12 w-12" />
+            <p>No photos uploaded yet</p>
+          </div>
+        )}
       </div>
 
       {/* Bottom Nav (Samaro-style) */}
       <div className="fixed inset-x-0 bottom-0 z-50 flex border-t border-gray-200 bg-white">
-        <button className="flex flex-1 flex-col items-center gap-0.5 py-3 text-xs text-gray-500 transition hover:text-gray-900">
+        <button
+          onClick={shareViaWhatsApp}
+          className="flex flex-1 flex-col items-center gap-0.5 py-3 text-xs text-gray-500 transition hover:text-gray-900"
+        >
           <Share2 className="h-5 w-5" />
           Share
         </button>
         <button
           onClick={() => {
-            setActiveTab("my");
-            if (myPhotos.length === 0) setShowSelfiePrompt(true);
+            if (!hasSearched) {
+              setShowSelfie(true);
+            } else {
+              setActiveTab("my");
+            }
           }}
           className={`flex flex-1 flex-col items-center gap-0.5 py-3 text-xs transition ${
             activeTab === "my"
-              ? "text-primary font-medium"
+              ? "font-medium text-primary"
               : "text-gray-500 hover:text-gray-900"
           }`}
         >
@@ -269,7 +423,18 @@ export function GuestGallery({
           <Lock className="h-5 w-5" />
           Private
         </button>
-        <button className="flex flex-1 flex-col items-center gap-0.5 py-3 text-xs text-gray-500 transition hover:text-gray-900">
+        <button
+          className="flex flex-1 flex-col items-center gap-0.5 py-3 text-xs text-gray-500 transition hover:text-gray-900"
+          onClick={() => {
+            if (selectedPhoto) {
+              const a = document.createElement("a");
+              a.href = selectedPhoto.source_url;
+              a.download = "";
+              a.target = "_blank";
+              a.click();
+            }
+          }}
+        >
           <Download className="h-5 w-5" />
           Download
         </button>
@@ -282,15 +447,28 @@ export function GuestGallery({
           onClick={() => setSelectedPhoto(null)}
         >
           <button
-            className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20"
+            className="absolute right-4 top-4 z-10 rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20"
             onClick={() => setSelectedPhoto(null)}
           >
             <X className="h-6 w-6" />
           </button>
+          <div className="absolute bottom-6 left-0 right-0 z-10 flex justify-center gap-4">
+            <a
+              href={selectedPhoto.source_url}
+              download
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-5 py-2.5 text-sm font-medium text-white backdrop-blur hover:bg-white/20"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Download className="h-4 w-4" />
+              Download
+            </a>
+          </div>
           <img
             src={selectedPhoto.source_url}
             alt=""
-            className="max-h-[90vh] max-w-[95vw] object-contain"
+            className="max-h-[85vh] max-w-[95vw] object-contain"
             onClick={(e) => e.stopPropagation()}
           />
         </div>

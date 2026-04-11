@@ -34,14 +34,13 @@ next-env.d.ts
 
 # photos in workspace (not part of the app)
 *.JPG
-*.jpg
 *.jpeg
-*.png
-*.gif
-*.webp
 *.mp4
 *.mov
 *.avi
+
+# allow model files and public assets
+!public/models/**
 
 # cursor
 .cursor/
