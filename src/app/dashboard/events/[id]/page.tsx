@@ -3,15 +3,13 @@ import Link from "next/link";
 import {
   ArrowLeft,
   Share2,
-  QrCode,
   ImageIcon,
   Users,
-  ExternalLink,
-  Copy,
   Settings,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { ShareButton } from "./share-button";
+import { EventPhotos } from "./event-photos";
 
 export default async function EventDetailPage({
   params,
@@ -40,8 +38,7 @@ export default async function EventDetailPage({
     .from("photos")
     .select("*")
     .eq("event_id", id)
-    .order("created_at", { ascending: false })
-    .limit(20);
+    .order("created_at", { ascending: false });
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const shareUrl = `${appUrl}/e/${event.share_slug}`;
@@ -165,46 +162,10 @@ export default async function EventDetailPage({
       </div>
 
       {/* Photos Section */}
-      <div className="rounded-2xl border border-border bg-card p-6">
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Photos</h2>
-          <span className="text-sm text-muted-foreground">
-            Connect Google Drive to add photos
-          </span>
-        </div>
-
-        {!photos || photos.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border py-16">
-            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
-              <ImageIcon className="h-7 w-7 text-primary" />
-            </div>
-            <h3 className="mb-1 font-semibold">No photos yet</h3>
-            <p className="mb-4 text-center text-sm text-muted-foreground">
-              Connect your Google Drive to import event photos.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {photos.map((photo) => (
-              <div
-                key={photo.id}
-                className="group relative aspect-square overflow-hidden rounded-lg bg-muted"
-              >
-                <img
-                  src={photo.thumbnail_url || photo.source_url}
-                  alt=""
-                  className="h-full w-full object-cover transition group-hover:scale-105"
-                />
-                {photo.faces_indexed && (
-                  <div className="absolute bottom-1 right-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
-                    {photo.face_count} faces
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <EventPhotos
+        eventId={event.id}
+        initialPhotos={photos ?? []}
+      />
     </div>
   );
 }
