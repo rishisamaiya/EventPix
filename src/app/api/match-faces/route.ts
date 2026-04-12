@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
   try {
-    const { embedding, eventId, threshold = 0.6, limit = 100 } = await request.json();
+    const { embedding, eventId, threshold = 0.55, limit = 100 } = await request.json();
 
     if (!embedding || !eventId) {
       return NextResponse.json(
@@ -16,6 +16,7 @@ export async function POST(request: NextRequest) {
 
     const formattedEmbedding = `[${embedding.join(",")}]`;
 
+    // threshold is now Euclidean distance: < 0.55 = match, lower = better
     const { data, error } = await supabase.rpc("match_faces", {
       query_embedding: formattedEmbedding,
       target_event_id: eventId,
@@ -28,7 +29,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ matches: data ?? [] });
+    // Sort by distance (ascending — best matches first)
+    const sorted = (data ?? []).sort(
+      (a: any, b: any) => a.similarity - b.similarity
+    );
+
+    return NextResponse.json({ matches: sorted });
   } catch (err) {
     console.error("Match faces API error:", err);
     return NextResponse.json(
