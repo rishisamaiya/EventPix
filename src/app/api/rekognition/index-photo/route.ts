@@ -114,19 +114,21 @@ export async function POST(request: NextRequest) {
     // Send to Rekognition
     const faceCount = await indexFacesInPhoto(eventId, photoId, imageBytes);
 
-    // Update DB
+    // Only mark as fully indexed if faces were actually found.
+    // Photos with 0 faces stay as faces_indexed=false so they can be retried
+    // via the "Retry zero-face" option without polluting the main index queue.
     await supabase
       .from("photos")
-      .update({ faces_indexed: true, face_count: faceCount })
+      .update({ faces_indexed: faceCount > 0, face_count: faceCount })
       .eq("id", photoId);
 
     return NextResponse.json({ success: true, faceCount });
   } catch (err: any) {
     console.error("Rekognition index error:", err);
-    // Mark as indexed even on failure so we don't retry infinitely
+    // On hard error, keep faces_indexed=false so the user can retry
     await supabase
       .from("photos")
-      .update({ faces_indexed: true, face_count: 0 })
+      .update({ faces_indexed: false, face_count: 0 })
       .eq("id", photoId);
     return NextResponse.json({ error: err.message ?? "Unknown error" }, { status: 500 });
   }

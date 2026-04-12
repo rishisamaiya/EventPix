@@ -152,18 +152,22 @@ export function EventPhotos({
       {/* Face Indexing — always visible when photos exist */}
       {photos.length > 0 && (
         <div className="mt-4 space-y-3">
+          {/* Amber: index only new unindexed photos */}
           <FaceIndexer
             eventId={eventId}
             unindexedCount={photos.filter((p) => !p.faces_indexed).length}
             onComplete={() => router.refresh()}
           />
-          {/* Show Re-index button when all photos are already indexed (old face-api.js data) */}
+
+          {/* Blue: Re-index All — only show when everything is indexed */}
           {photos.every((p) => p.faces_indexed) && (
             <div className="flex items-center justify-between rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3">
               <div>
-                <p className="text-sm font-medium text-indigo-800">Re-index with AWS Rekognition</p>
+                <p className="text-sm font-medium text-indigo-800">
+                  Re-index All with AWS Rekognition
+                </p>
                 <p className="text-xs text-indigo-600">
-                  Clears old face data and re-indexes using AWS for much better accuracy.
+                  Clears all face data and re-indexes every photo. Use only when accuracy needs fixing.
                 </p>
               </div>
               <button
@@ -171,12 +175,8 @@ export function EventPhotos({
                 disabled={reindexing}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
               >
-                {reindexing ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4" />
-                )}
-                {reindexing ? "Clearing..." : "Re-index Now"}
+                {reindexing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                {reindexing ? "Clearing..." : `Re-index All (${photos.length})`}
               </button>
             </div>
           )}
