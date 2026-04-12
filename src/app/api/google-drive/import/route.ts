@@ -26,8 +26,8 @@ export async function POST(request: NextRequest) {
 
   const records = photos.map((p: any) => ({
     event_id: eventId,
-    source_url: p.source_url,
-    thumbnail_url: p.thumbnail_url,
+    source_url: `DRIVE:${p.drive_file_id}`,
+    thumbnail_url: `DRIVE:${p.drive_file_id}`,
     drive_file_id: p.drive_file_id,
     width: p.width || null,
     height: p.height || null,
@@ -41,6 +41,18 @@ export async function POST(request: NextRequest) {
     .from("photos")
     .insert(records)
     .select("id, source_url, thumbnail_url, drive_file_id");
+
+  // Update URLs to use our proxy
+  if (data) {
+    for (const photo of data) {
+      const proxyThumb = `/api/drive-image/${photo.id}?size=thumb`;
+      const proxyFull = `/api/drive-image/${photo.id}?size=full`;
+      await supabase
+        .from("photos")
+        .update({ thumbnail_url: proxyThumb, source_url: proxyFull })
+        .eq("id", photo.id);
+    }
+  }
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
