@@ -99,7 +99,7 @@ body {
 }
 
 .shine-text {
-  background: linear-gradient(90deg, #db2777, #f472b6, #db2777);
+  background: linear-gradient(90deg, #7c3aed, #a78bfa, #4f46e5, #7c3aed);
   background-size: 200% auto;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
