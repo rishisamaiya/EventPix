@@ -27,3 +27,82 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(var(--r, 0deg)); }
+  50%       { transform: translateY(-18px) rotate(var(--r, 0deg)); }
+}
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px) rotate(var(--r, 0deg)); }
+  50%       { transform: translateY(-10px) rotate(var(--r, 0deg)); }
+}
+@keyframes float-reverse {
+  0%, 100% { transform: translateY(0px) rotate(var(--r, 0deg)); }
+  50%       { transform: translateY(14px) rotate(var(--r, 0deg)); }
+}
+@keyframes orb-pulse {
+  0%, 100% { transform: scale(1);   opacity: 0.4; }
+  50%       { transform: scale(1.15); opacity: 0.65; }
+}
+@keyframes scan {
+  0%   { top: 10%; opacity: 1; }
+  100% { top: 90%; opacity: 0; }
+}
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes bounce-x {
+  0%, 100% { transform: translateX(0); }
+  50%       { transform: translateX(6px); }
+}
+
+.animate-float        { animation: float         4s ease-in-out infinite; }
+.animate-float-slow   { animation: float-slow    6s ease-in-out infinite; }
+.animate-float-rev    { animation: float-reverse 5s ease-in-out infinite; }
+.animate-orb          { animation: orb-pulse     5s ease-in-out infinite; }
+.animate-fade-up      { animation: fade-up       0.7s ease-out both; }
+.animate-spin-slow    { animation: spin-slow    20s linear infinite; }
+.animate-bounce-x     { animation: bounce-x      1.5s ease-in-out infinite; }
+.delay-100  { animation-delay: 0.1s; }
+.delay-200  { animation-delay: 0.2s; }
+.delay-300  { animation-delay: 0.3s; }
+.delay-500  { animation-delay: 0.5s; }
+.delay-700  { animation-delay: 0.7s; }
+.delay-1000 { animation-delay: 1.0s; }
+.delay-1500 { animation-delay: 1.5s; }
+.delay-2000 { animation-delay: 2.0s; }
+.delay-2500 { animation-delay: 2.5s; }
+
+.card-3d {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transform-style: preserve-3d;
+}
+.card-3d:hover {
+  transform: perspective(800px) rotateX(-4deg) rotateY(4deg) translateY(-4px);
+  box-shadow: 20px 20px 40px rgba(219,39,119,0.15);
+}
+
+.glass {
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.5);
+}
+
+.shine-text {
+  background: linear-gradient(90deg, #db2777, #f472b6, #db2777);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 3s linear infinite;
+}
