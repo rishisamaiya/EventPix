@@ -65,59 +65,38 @@ export function GuestGallery({
   }
 
   async function handleSelfieCapture(
-    _imageData: string,
-    imageElement: HTMLImageElement
+    imageData: string,
+    _imageElement: HTMLImageElement
   ) {
     setMatchLoading(true);
-    setMatchLoadingText("Loading AI models...");
+    setMatchLoadingText("Searching your photos...");
 
     try {
-      const { loadModels, getSingleFaceDescriptor, descriptorToArray } =
-        await import("@/lib/face-detection");
-
-      await loadModels();
-      setMatchLoadingText("Analyzing your face...");
-
-      const descriptor = await getSingleFaceDescriptor(imageElement);
-      if (!descriptor) {
-        alert("No face detected. Please try again with a clearer selfie.");
-        setMatchLoading(false);
-        setShowSelfie(false);
-        return;
-      }
-
-      setMatchLoadingText("Searching through event photos...");
-      const embedding = descriptorToArray(descriptor);
-
-      const response = await fetch("/api/match-faces", {
+      const response = await fetch("/api/rekognition/search-faces", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          embedding,
+          imageData,
           eventId: event.id,
-          threshold: 0.45,
-          limit: 200,
+          threshold: 80,
         }),
       });
 
       const data = await response.json();
 
-      if (data.matches && data.matches.length > 0) {
-        setMyPhotos(data.matches);
-      } else {
-        setMyPhotos([]);
+      if (!response.ok) {
+        throw new Error(data.error || "Search failed");
       }
 
+      setMyPhotos(data.photos ?? []);
       setHasSearched(true);
       setShowSelfie(false);
       setActiveTab("my");
     } catch (err) {
       console.error("Face matching error:", err);
       alert(
-        "Face matching failed. This could be because:\n" +
-        "- The AI models are still loading (try again in a few seconds)\n" +
-        "- Photos haven't been indexed yet (ask the event host)\n" +
-        "- Poor network connection"
+        "Face matching failed. Please try again.\n" +
+        "If the problem persists, ask the event host to re-index photos."
       );
     } finally {
       setMatchLoading(false);
