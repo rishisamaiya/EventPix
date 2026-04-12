@@ -87,16 +87,17 @@ export function EventPhotos({
 
   async function deletePhoto(photoId: string) {
     setDeleting(photoId);
-    await supabase.from("face_embeddings").delete().eq("photo_id", photoId);
-    await supabase.from("photos").delete().eq("id", photoId);
+    // API handles R2 file deletion + DB cleanup
+    await fetch("/api/r2/delete-photo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ photoId }),
+    });
     setPhotos((prev) => prev.filter((p) => p.id !== photoId));
-
-    const newCount = photos.length - 1;
     await supabase
       .from("events")
-      .update({ photo_count: newCount })
+      .update({ photo_count: photos.length - 1 })
       .eq("id", eventId);
-
     setDeleting(null);
   }
 

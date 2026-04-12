@@ -18,14 +18,19 @@ export function EventActions({
   const supabase = createClient();
 
   async function handleDelete() {
-    if (!confirm("Are you sure you want to delete this event? All photos and data will be lost.")) {
+    if (!confirm("Are you sure? This deletes all photos from Cloudflare R2, AWS Rekognition, and the database permanently.")) {
       return;
     }
     setDeleting(true);
-    await supabase.from("face_embeddings").delete().eq("event_id", eventId);
-    await supabase.from("photos").delete().eq("event_id", eventId);
-    await supabase.from("guest_sessions").delete().eq("event_id", eventId);
-    await supabase.from("events").delete().eq("id", eventId);
+    try {
+      await fetch("/api/events/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId }),
+      });
+    } catch (err) {
+      console.error("Event delete error:", err);
+    }
     router.push("/dashboard");
     router.refresh();
   }

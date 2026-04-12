@@ -1,4 +1,8 @@
 {
-  "framework": "nextjs",
-  "regions": ["iad1"]
+  "crons": [
+    {
+      "path": "/api/cron/cleanup-expired",
+      "schedule": "0 0 * * *"
+    }
+  ]
 }

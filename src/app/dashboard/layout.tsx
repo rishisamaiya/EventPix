@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Camera, LogOut, LayoutDashboard } from "lucide-react";
+import { Camera, LayoutDashboard, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { LogoutButton } from "./logout-button";
+
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "rishjain@gmail.com";
 
 export default async function DashboardLayout({
   children,
@@ -36,6 +38,15 @@ export default async function DashboardLayout({
               <LayoutDashboard className="h-4 w-4" />
               Dashboard
             </Link>
+            {user.email === ADMIN_EMAIL && (
+              <Link
+                href="/dashboard/admin"
+                className="flex items-center gap-1.5 text-sm font-medium text-violet-600 transition hover:text-violet-800"
+              >
+                <ShieldCheck className="h-4 w-4" />
+                Admin
+              </Link>
+            )}
             <span className="text-sm text-muted-foreground">
               {user.email}
             </span>
