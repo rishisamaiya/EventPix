@@ -5,50 +5,68 @@ import {
   Download, Zap, Shield, QrCode, Smartphone, Image as ImageIcon,
 } from "lucide-react";
 
-/* ─── real wedding photos from Unsplash (free, no attribution needed for web) ─ */
-const WEDDING_PHOTOS = [
-  "https://images.unsplash.com/photo-1583939003579-730e3918a45a?w=320&h=400&fit=crop&q=75",
-  "https://images.unsplash.com/photo-1537907510278-2b1acdabcd4c?w=320&h=400&fit=crop&q=75",
-  "https://images.unsplash.com/photo-1529634597503-139d3726fed5?w=320&h=400&fit=crop&q=75",
-  "https://images.unsplash.com/photo-1606216794074-735e91aa2c92?w=320&h=400&fit=crop&q=75",
-];
-
+/* ─── real wedding photos from Unsplash ─────────────────────────────────── */
 /* phone grid: 9 small wedding thumbnails */
 const GRID_PHOTOS = [
   "https://images.unsplash.com/photo-1583939003579-730e3918a45a?w=100&h=100&fit=crop&q=60",
-  "https://images.unsplash.com/photo-1537907510278-2b1acdabcd4c?w=100&h=100&fit=crop&q=60",
-  "https://images.unsplash.com/photo-1529634597503-139d3726fed5?w=100&h=100&fit=crop&q=60",
-  "https://images.unsplash.com/photo-1606216794074-735e91aa2c92?w=100&h=100&fit=crop&q=60",
-  "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=100&h=100&fit=crop&q=60",
-  "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?w=100&h=100&fit=crop&q=60",
   "https://images.unsplash.com/photo-1519741497674-611481863552?w=100&h=100&fit=crop&q=60",
+  "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=100&h=100&fit=crop&q=60",
+  "https://images.unsplash.com/photo-1606216794074-735e91aa2c92?w=100&h=100&fit=crop&q=60",
+  "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?w=100&h=100&fit=crop&q=60",
+  "https://images.unsplash.com/photo-1529634597503-139d3726fed5?w=100&h=100&fit=crop&q=60",
   "https://images.unsplash.com/photo-1587271407850-8d438ca9fdf2?w=100&h=100&fit=crop&q=60",
   "https://images.unsplash.com/photo-1550005809-91ad75fb315f?w=100&h=100&fit=crop&q=60",
+  "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?w=100&h=100&fit=crop&q=60",
 ];
 
 /* ─── floating photo cards ───────────────────────────────────────────────── */
+/*  faceBox: null  = no detection box (e.g. Mehendi hands photo)
+    faceBox: {top, left} = position the amber box on the actual face in the photo */
 const CARDS = [
-  { photo: WEDDING_PHOTOS[0], label: "Bride & Groom",  badge: "3 matches",  pos: "top-[2%]    -left-[18%]",  anim: "animate-float",     rotate: "-6deg", delay: "delay-0",    size: "w-36 h-44" },
-  { photo: WEDDING_PHOTOS[1], label: "Reception",      badge: "7 matches",  pos: "top-[18%]  -right-[20%]",  anim: "animate-float-rev", rotate:  "8deg", delay: "delay-500",  size: "w-32 h-40" },
-  { photo: WEDDING_PHOTOS[2], label: "Mehendi",        badge: "12 matches", pos: "bottom-[18%] -left-[22%]", anim: "animate-float-slow",rotate:  "4deg", delay: "delay-1000", size: "w-40 h-48" },
-  { photo: WEDDING_PHOTOS[3], label: "Sangeet",        badge: "5 matches",  pos: "bottom-[5%] -right-[16%]", anim: "animate-float",     rotate: "-8deg", delay: "delay-2000", size: "w-32 h-36" },
+  {
+    // Indian wedding group — faces in upper-center of frame
+    photo: "https://images.unsplash.com/photo-1583939003579-730e3918a45a?w=320&h=400&fit=crop&q=75",
+    label: "Bride & Groom", badge: "3 matches",
+    pos: "top-[2%] -left-[18%]", anim: "animate-float", rotate: "-6deg", delay: "delay-0", size: "w-36 h-44",
+    faceBox: { top: "16%", left: "38%" },
+  },
+  {
+    // Wedding reception with guests — different working URL
+    photo: "https://images.unsplash.com/photo-1519741497674-611481863552?w=320&h=400&fit=crop&q=75",
+    label: "Reception", badge: "7 matches",
+    pos: "top-[18%] -right-[20%]", anim: "animate-float-rev", rotate: "8deg", delay: "delay-500", size: "w-32 h-40",
+    faceBox: { top: "14%", left: "28%" },
+  },
+  {
+    // Henna/mehendi on hands — NO face detection box
+    photo: "https://images.unsplash.com/photo-1598894736497-2f7e3bfae9c8?w=320&h=400&fit=crop&q=75",
+    label: "Mehendi", badge: "12 matches",
+    pos: "bottom-[18%] -left-[22%]", anim: "animate-float-slow", rotate: "4deg", delay: "delay-1000", size: "w-40 h-48",
+    faceBox: null,
+  },
+  {
+    // Indian man — face clearly at top of portrait
+    photo: "https://images.unsplash.com/photo-1606216794074-735e91aa2c92?w=320&h=400&fit=crop&q=75",
+    label: "Sangeet", badge: "5 matches",
+    pos: "bottom-[5%] -right-[16%]", anim: "animate-float", rotate: "-8deg", delay: "delay-2000", size: "w-32 h-36",
+    faceBox: { top: "10%", left: "30%" },
+  },
 ];
 
-function PhotoCard({ photo, label, badge, pos, anim, rotate, delay, size }: (typeof CARDS)[number]) {
+function PhotoCard({ photo, label, badge, pos, anim, rotate, delay, size, faceBox }: (typeof CARDS)[number]) {
   return (
     <div className={`absolute ${pos} ${anim} ${delay} cursor-default`}>
       <div className={`overflow-hidden rounded-2xl shadow-2xl shadow-blue-200/50 ${size}`}
            style={{ transform: `rotate(${rotate})` }}>
         <div className="relative h-full w-full">
-          <Image
-            src={photo}
-            alt={label}
-            fill
-            className="object-cover"
-            unoptimized
-          />
-          {/* face detection box */}
-          <div className="absolute left-1/2 top-1/3 -translate-x-1/2 -translate-y-1/2 h-10 w-10 border-2 border-amber-400 rounded-sm shadow-[0_0_8px_rgba(251,191,36,0.7)]" />
+          <Image src={photo} alt={label} fill className="object-cover" unoptimized />
+          {/* face detection box — only on photos that have faces */}
+          {faceBox && (
+            <div
+              className="absolute h-10 w-10 rounded-sm border-2 border-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.8)]"
+              style={{ top: faceBox.top, left: faceBox.left }}
+            />
+          )}
           {/* label bar */}
           <div className="absolute bottom-0 left-0 right-0 bg-black/40 backdrop-blur-sm px-2 py-1.5">
             <p className="text-white text-[11px] font-semibold truncate">{label}</p>
