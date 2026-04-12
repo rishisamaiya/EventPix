@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ImageIcon, ScanFace, Trash2, HardDrive, Upload, RefreshCw, Loader2, Clock } from "lucide-react";
+import { ImageIcon, ScanFace, Trash2, HardDrive, Upload, RefreshCw, Loader2, Clock, AlertTriangle } from "lucide-react";
 import { PhotoUploader } from "@/components/photo-uploader";
 import { GoogleDrivePicker } from "@/components/google-drive-picker";
 import { FaceIndexer } from "@/components/face-indexer";
@@ -31,6 +31,7 @@ export function EventPhotos({
   const [sourceTab, setSourceTab] = useState<"drive" | "upload">("drive");
   const [reindexing, setReindexing] = useState(false);
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
+  const [cleaningUp, setCleaningUp] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
@@ -39,6 +40,31 @@ export function EventPhotos({
   const drivePhotos = photos.filter((p) => p.drive_file_id);
   const thumbsStillProcessing =
     drivePhotos.length > 0 && failedCount > drivePhotos.length / 2;
+
+  // R2 photos with 0 faces = failed uploads (file never reached R2)
+  const brokenR2Count = photos.filter((p) => !p.drive_file_id && p.face_count === 0).length;
+
+  async function handleCleanupFailed() {
+    if (!confirm(`Remove ${brokenR2Count} failed upload records? You can re-upload the photos after this.`)) return;
+    setCleaningUp(true);
+    try {
+      const res = await fetch("/api/r2/cleanup-failed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setPhotos((prev) => prev.filter((p) => p.drive_file_id || p.face_count > 0));
+        alert(`Removed ${data.deleted} broken records. Now re-upload your photos.`);
+      } else {
+        alert(data.error || "Cleanup failed");
+      }
+    } catch {
+      alert("Cleanup request failed");
+    }
+    setCleaningUp(false);
+  }
 
   async function handleReindexWithAWS() {
     if (!confirm(`This will clear all existing face data and re-index all ${photos.length} photos using AWS Rekognition. Continue?`)) return;
@@ -154,6 +180,31 @@ export function EventPhotos({
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Broken R2 uploads banner */}
+      {brokenR2Count > 0 && (
+        <div className="mt-4 flex items-start justify-between gap-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0 text-red-500" />
+            <div>
+              <p className="text-sm font-semibold text-red-800">
+                {brokenR2Count} photos failed to upload to R2
+              </p>
+              <p className="text-xs text-red-600 mt-0.5">
+                Files never reached Cloudflare R2 (missing env vars at upload time). Clear these records, then re-upload.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleCleanupFailed}
+            disabled={cleaningUp}
+            className="flex-shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
+          >
+            {cleaningUp ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+            {cleaningUp ? "Clearing..." : "Clear & Re-upload"}
+          </button>
         </div>
       )}
 
