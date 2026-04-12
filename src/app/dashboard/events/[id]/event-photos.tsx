@@ -99,8 +99,8 @@ export function EventPhotos({
         >
           <Upload className="h-4 w-4" />
           Direct Upload
-          <span className="rounded bg-yellow-100 px-1.5 py-0.5 text-[10px] font-bold text-yellow-700">
-            1GB LIMIT
+          <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-bold text-green-700">
+            10GB FREE
           </span>
         </button>
       </div>
