@@ -471,7 +471,11 @@ export function GuestGallery({
             </a>
           </div>
           <img
-            src={selectedPhoto.source_url}
+            src={
+              selectedPhoto.thumbnail_url
+                ? selectedPhoto.thumbnail_url.replace("size=thumb", "size=large")
+                : selectedPhoto.source_url
+            }
             alt=""
             className="max-h-[85vh] max-w-[95vw] object-contain"
             onClick={(e) => e.stopPropagation()}

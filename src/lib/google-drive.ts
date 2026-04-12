@@ -24,14 +24,28 @@ export async function getTokensFromCode(code: string) {
   return tokens;
 }
 
-export function getDriveClient(accessToken: string) {
+export function getDriveClient(accessToken: string, refreshToken?: string) {
   const oauth2Client = getOAuth2Client();
-  oauth2Client.setCredentials({ access_token: accessToken });
-  return google.drive({ version: "v3", auth: oauth2Client });
+  oauth2Client.setCredentials({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+  });
+  return { drive: google.drive({ version: "v3", auth: oauth2Client }), oauth2Client };
+}
+
+export async function refreshAccessToken(refreshToken: string): Promise<string | null> {
+  try {
+    const oauth2Client = getOAuth2Client();
+    oauth2Client.setCredentials({ refresh_token: refreshToken });
+    const { credentials } = await oauth2Client.refreshAccessToken();
+    return credentials.access_token ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export async function listFolders(accessToken: string) {
-  const drive = getDriveClient(accessToken);
+  const { drive } = getDriveClient(accessToken);
   const res = await drive.files.list({
     q: "mimeType = 'application/vnd.google-apps.folder' and trashed = false",
     fields: "files(id, name, modifiedTime)",
@@ -46,7 +60,7 @@ export async function listPhotosInFolder(
   folderId: string,
   pageToken?: string
 ) {
-  const drive = getDriveClient(accessToken);
+  const { drive } = getDriveClient(accessToken);
   const res = await drive.files.list({
     q: `'${folderId}' in parents and mimeType contains 'image/' and trashed = false`,
     fields:
@@ -65,7 +79,7 @@ export async function getPhotoDownloadUrl(
   accessToken: string,
   fileId: string
 ) {
-  const drive = getDriveClient(accessToken);
+  const { drive } = getDriveClient(accessToken);
   const res = await drive.files.get(
     { fileId, fields: "webContentLink, thumbnailLink" },
   );

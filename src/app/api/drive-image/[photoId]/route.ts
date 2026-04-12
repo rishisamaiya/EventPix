@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getDriveClient } from "@/lib/google-drive";
+import { getDriveClient, refreshAccessToken } from "@/lib/google-drive";
+
+// size=thumb  → 400px thumbnail (grid)
+// size=large  → 1200px thumbnail (lightbox)
+// size=full   → original file download
 
 export async function GET(
   request: NextRequest,
@@ -22,9 +26,11 @@ export async function GET(
     return new NextResponse("Not found", { status: 404 });
   }
 
+  const fileId = photo.drive_file_id;
+
   const { data: event } = await supabase
     .from("events")
-    .select("cloud_config, status")
+    .select("id, cloud_config")
     .eq("id", photo.event_id)
     .single();
 
@@ -32,38 +38,99 @@ export async function GET(
     return new NextResponse("Drive not connected", { status: 400 });
   }
 
-  try {
-    const drive = getDriveClient(event.cloud_config.access_token);
+  let accessToken: string = event.cloud_config.access_token;
+  const refreshToken: string | undefined = event.cloud_config.refresh_token;
 
-    if (size === "thumb") {
-      const res = await drive.files.get(
-        { fileId: photo.drive_file_id, fields: "thumbnailLink" },
-      );
+  // Helper: try fetching, auto-refresh token on 401
+  async function fetchDriveImage(token: string): Promise<Response | null> {
+    try {
+      const { drive } = getDriveClient(token, refreshToken);
 
-      if (res.data.thumbnailLink) {
-        const thumbUrl = res.data.thumbnailLink.replace(/=s\d+/, "=s400");
-        const imgRes = await fetch(thumbUrl);
-        const buffer = await imgRes.arrayBuffer();
-        return new NextResponse(buffer, {
+      if (size === "full") {
+        // Download the original file
+        const res = await drive.files.get(
+          { fileId, alt: "media" },
+          { responseType: "arraybuffer" }
+        );
+        return new NextResponse(res.data as ArrayBuffer, {
           headers: {
-            "Content-Type": imgRes.headers.get("content-type") || "image/jpeg",
+            "Content-Type": "image/jpeg",
             "Cache-Control": "public, max-age=86400",
+            "Content-Disposition": `attachment; filename="photo.jpg"`,
           },
-        });
+        }) as unknown as Response;
+      }
+
+      // For thumb and large: use Google's thumbnail URL (much faster, no quota)
+      const pixelSize = size === "large" ? 1200 : 400;
+      const metaRes = await drive.files.get({
+        fileId,
+        fields: "thumbnailLink",
+      });
+
+      let thumbUrl = metaRes.data.thumbnailLink;
+      if (thumbUrl) {
+        thumbUrl = thumbUrl.replace(/=s\d+/, `=s${pixelSize}`);
+        const imgRes = await fetch(thumbUrl);
+        if (imgRes.ok) {
+          const buffer = await imgRes.arrayBuffer();
+          return new NextResponse(buffer, {
+            headers: {
+              "Content-Type": imgRes.headers.get("content-type") || "image/jpeg",
+              "Cache-Control": "public, max-age=86400",
+            },
+          }) as unknown as Response;
+        }
+      }
+
+      // Fallback: stream the file directly
+      const res = await drive.files.get(
+        { fileId, alt: "media" },
+        { responseType: "arraybuffer" }
+      );
+      return new NextResponse(res.data as ArrayBuffer, {
+        headers: {
+          "Content-Type": "image/jpeg",
+          "Cache-Control": "public, max-age=86400",
+        },
+      }) as unknown as Response;
+    } catch (err: any) {
+      if (err?.code === 401 || err?.status === 401 || err?.response?.status === 401) {
+        return null; // signal to refresh
+      }
+      throw err;
+    }
+  }
+
+  try {
+    let result = await fetchDriveImage(accessToken);
+
+    // Token expired — refresh and retry
+    if (result === null && refreshToken) {
+      const newToken = await refreshAccessToken(refreshToken);
+      if (newToken) {
+        accessToken = newToken;
+
+        // Persist the new token so future requests don't need to refresh
+        await supabase
+          .from("events")
+          .update({
+            cloud_config: {
+              ...event.cloud_config,
+              access_token: newToken,
+            },
+          })
+          .eq("id", event.id);
+
+        result = await fetchDriveImage(newToken);
       }
     }
 
-    const res = await drive.files.get(
-      { fileId: photo.drive_file_id, alt: "media" },
-      { responseType: "arraybuffer" }
-    );
+    if (!result) {
+      return new NextResponse("Google Drive token expired. Please reconnect Google Drive in the dashboard.", { status: 401 });
+    }
 
-    return new NextResponse(res.data as ArrayBuffer, {
-      headers: {
-        "Content-Type": "image/jpeg",
-        "Cache-Control": "public, max-age=86400",
-      },
-    });
+    return result as unknown as NextResponse;
   } catch (error) {
     console.error("Drive image proxy error:", error);
     return new NextResponse("Failed to fetch image", { status: 500 });
