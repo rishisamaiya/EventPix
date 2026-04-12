@@ -2,13 +2,15 @@ import * as faceapi from "@vladmandic/face-api";
 
 let modelsLoaded = false;
 
+const MODEL_CDN = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model";
+
 export async function loadModels() {
   if (modelsLoaded) return;
 
   await Promise.all([
-    faceapi.nets.ssdMobilenetv1.loadFromUri("/models"),
-    faceapi.nets.faceLandmark68Net.loadFromUri("/models"),
-    faceapi.nets.faceRecognitionNet.loadFromUri("/models"),
+    faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_CDN),
+    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_CDN),
+    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_CDN),
   ]);
 
   modelsLoaded = true;
