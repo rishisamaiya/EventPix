@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { Users, ImageIcon, HardDrive, TrendingUp, Calendar, CheckCircle2, Clock, XCircle } from "lucide-react";
 
 // Only allow the designated admin email
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "rishjain@gmail.com";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "rishi.samaiya@gmail.com";
 
 type EventRow = {
   id: string;

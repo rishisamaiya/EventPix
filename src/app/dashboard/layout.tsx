@@ -4,7 +4,7 @@ import { Camera, LayoutDashboard, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { LogoutButton } from "./logout-button";
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "rishjain@gmail.com";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "rishi.samaiya@gmail.com";
 
 export default async function DashboardLayout({
   children,
