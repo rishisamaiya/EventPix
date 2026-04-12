@@ -43,7 +43,8 @@ export function EventPhotos({
         body: JSON.stringify({ eventId }),
       });
       if (!res.ok) throw new Error("Failed to clear");
-      router.refresh();
+      // Update local state so FaceIndexer appears immediately (router.refresh alone won't update useState)
+      setPhotos((prev) => prev.map((p) => ({ ...p, faces_indexed: false, face_count: 0 })));
     } catch (err) {
       alert("Failed to reset face data. Please try again.");
     } finally {

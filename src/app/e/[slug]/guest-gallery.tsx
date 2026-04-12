@@ -85,19 +85,26 @@ export function GuestGallery({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Search failed");
+        const errMsg = data.error || "Search failed";
+        // Surface a clear message for missing AWS credentials
+        if (errMsg.includes("credentials") || errMsg.includes("region") || response.status === 500) {
+          throw new Error("SERVER_ERROR:" + errMsg);
+        }
+        throw new Error(errMsg);
       }
 
       setMyPhotos(data.photos ?? []);
       setHasSearched(true);
       setShowSelfie(false);
       setActiveTab("my");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Face matching error:", err);
-      alert(
-        "Face matching failed. Please try again.\n" +
-        "If the problem persists, ask the event host to re-index photos."
-      );
+      const msg = err?.message ?? "";
+      if (msg.startsWith("SERVER_ERROR:")) {
+        alert("The face search service is not configured yet. Please ask the host to complete the setup.");
+      } else {
+        alert("No face detected in your selfie. Please take another selfie in good lighting, facing the camera directly.");
+      }
     } finally {
       setMatchLoading(false);
     }

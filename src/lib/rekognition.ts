@@ -100,10 +100,11 @@ export async function searchFacesByImage(
       .map(([photoId, similarity]) => ({ photoId, similarity }))
       .sort((a, b) => b.similarity - a.similarity);
   } catch (err: any) {
-    // No face detected in the selfie image
+    // No face detected in the selfie, or collection doesn't exist yet
     if (
       err.name === "InvalidParameterException" ||
-      err.name === "InvalidImageFormatException"
+      err.name === "InvalidImageFormatException" ||
+      err.name === "ResourceNotFoundException"
     ) {
       return [];
     }
