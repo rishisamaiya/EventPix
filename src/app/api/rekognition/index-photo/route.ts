@@ -2,6 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { indexFacesInPhoto } from "@/lib/rekognition";
 import { getDriveClient, refreshAccessToken } from "@/lib/google-drive";
+import sharp from "sharp";
+
+// AWS Rekognition rejects payloads > 5 MB. Resize large images to ≤ 1600px
+// JPEG before sending — plenty of resolution for face detection.
+async function prepareForRekognition(bytes: Uint8Array): Promise<Uint8Array> {
+  const FIVE_MB = 5 * 1024 * 1024;
+  if (bytes.length <= FIVE_MB) return bytes;
+  const resized = await sharp(Buffer.from(bytes))
+    .resize(1600, 1600, { fit: "inside", withoutEnlargement: true })
+    .jpeg({ quality: 85 })
+    .toBuffer();
+  return new Uint8Array(resized);
+}
 
 // POST /api/rekognition/index-photo
 // Body: { photoId: string, eventId: string }
@@ -110,6 +123,9 @@ export async function POST(request: NextRequest) {
       if (!res.ok) return NextResponse.json({ error: "Failed to fetch image" }, { status: 500 });
       imageBytes = new Uint8Array(await res.arrayBuffer());
     }
+
+    // Resize to ≤ 1600px JPEG if image exceeds 5 MB (Rekognition's hard limit)
+    imageBytes = await prepareForRekognition(imageBytes);
 
     // Send to Rekognition
     const faceCount = await indexFacesInPhoto(eventId, photoId, imageBytes);
