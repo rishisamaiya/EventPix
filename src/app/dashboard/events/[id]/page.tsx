@@ -10,6 +10,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { ShareButton } from "./share-button";
 import { EventPhotos } from "./event-photos";
+import { EventActions } from "./event-actions";
 
 export default async function EventDetailPage({
   params,
@@ -82,7 +83,7 @@ export default async function EventDetailPage({
             </p>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {event.status === "draft" && (
               <form
                 action={async () => {
@@ -102,6 +103,7 @@ export default async function EventDetailPage({
                 </button>
               </form>
             )}
+            <EventActions eventId={event.id} hasdrivePhotos={!!event.cloud_config?.access_token} />
           </div>
         </div>
 
