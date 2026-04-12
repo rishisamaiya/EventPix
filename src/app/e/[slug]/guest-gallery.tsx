@@ -113,7 +113,12 @@ export function GuestGallery({
       setActiveTab("my");
     } catch (err) {
       console.error("Face matching error:", err);
-      alert("Something went wrong. Please try again.");
+      alert(
+        "Face matching failed. This could be because:\n" +
+        "- The AI models are still loading (try again in a few seconds)\n" +
+        "- Photos haven't been indexed yet (ask the event host)\n" +
+        "- Poor network connection"
+      );
     } finally {
       setMatchLoading(false);
     }

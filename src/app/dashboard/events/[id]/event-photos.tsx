@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ImageIcon, ScanFace, Trash2, HardDrive, Upload } from "lucide-react";
 import { PhotoUploader } from "@/components/photo-uploader";
 import { GoogleDrivePicker } from "@/components/google-drive-picker";
+import { FaceIndexer } from "@/components/face-indexer";
 import { createClient } from "@/lib/supabase/client";
 
 type Photo = {
@@ -93,6 +94,17 @@ export function EventPhotos({
         />
       ) : (
         <PhotoUploader eventId={eventId} onComplete={() => router.refresh()} />
+      )}
+
+      {/* Face Indexer for unindexed photos */}
+      {photos.length > 0 && (
+        <div className="mt-4">
+          <FaceIndexer
+            eventId={eventId}
+            unindexedCount={photos.filter((p) => !p.faces_indexed).length}
+            onComplete={() => router.refresh()}
+          />
+        </div>
       )}
 
       {/* Existing Photos Grid */}
