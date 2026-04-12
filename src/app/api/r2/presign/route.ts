@@ -59,11 +59,24 @@ export async function POST(request: NextRequest) {
   const key = buildPhotoKey(eventId, photoId, filename);
   const publicUrl = getPublicUrl(key);
 
-  // Update photo with real URLs and storage key
-  await supabase
+  // Update photo with real URLs. Try with storage_key first; if that column
+  // doesn't exist yet fall back to updating just the URLs so uploads still work.
+  const { error: updateErr } = await supabase
     .from("photos")
     .update({ source_url: publicUrl, thumbnail_url: publicUrl, storage_key: key })
     .eq("id", photoId);
+
+  if (updateErr) {
+    // storage_key column may not exist — retry without it
+    const { error: fallbackErr } = await supabase
+      .from("photos")
+      .update({ source_url: publicUrl, thumbnail_url: publicUrl })
+      .eq("id", photoId);
+    if (fallbackErr) {
+      console.error("presign: failed to update photo URL", fallbackErr.message);
+      return NextResponse.json({ error: `Failed to save photo URL: ${fallbackErr.message}` }, { status: 500 });
+    }
+  }
 
   // Increment event photo count
   await supabase

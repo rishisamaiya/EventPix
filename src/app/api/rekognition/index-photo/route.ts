@@ -111,16 +111,26 @@ export async function POST(request: NextRequest) {
 
       imageBytes = new Uint8Array(buffer);
     } else {
-      // Fetch from Supabase Storage or direct URL
+      // Fetch from R2 or direct URL
       const url = photo.source_url;
-      if (!url) return NextResponse.json({ error: "No image URL" }, { status: 400 });
+      if (!url || url === "pending") {
+        return NextResponse.json(
+          { error: "Photo URL not ready yet — the R2 upload may have failed. Re-upload the photo." },
+          { status: 400 }
+        );
+      }
 
       const fullUrl = url.startsWith("/")
         ? `${process.env.NEXT_PUBLIC_APP_URL}${url}`
         : url;
 
       const res = await fetch(fullUrl);
-      if (!res.ok) return NextResponse.json({ error: "Failed to fetch image" }, { status: 500 });
+      if (!res.ok) {
+        return NextResponse.json(
+          { error: `Failed to fetch image from R2 (${res.status}): ${fullUrl}` },
+          { status: 500 }
+        );
+      }
       imageBytes = new Uint8Array(await res.arrayBuffer());
     }
 
