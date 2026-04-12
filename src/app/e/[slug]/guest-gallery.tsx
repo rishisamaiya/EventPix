@@ -95,7 +95,7 @@ export function GuestGallery({
         body: JSON.stringify({
           embedding,
           eventId: event.id,
-          threshold: 0.55,
+          threshold: 0.45,
           limit: 200,
         }),
       });
