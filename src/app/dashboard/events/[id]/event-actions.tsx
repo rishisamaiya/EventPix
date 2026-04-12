@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, RefreshCw, Loader2 } from "lucide-react";
+import { Trash2, RefreshCw, Loader2, HardDrive } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 export function EventActions({
@@ -13,8 +13,7 @@ export function EventActions({
   hasdrivePhotos: boolean;
 }) {
   const [deleting, setDeleting] = useState(false);
-  const [fixing, setFixing] = useState(false);
-  const [fixResult, setFixResult] = useState<string | null>(null);
+  const [reconnecting, setReconnecting] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
@@ -22,49 +21,51 @@ export function EventActions({
     if (!confirm("Are you sure you want to delete this event? All photos and data will be lost.")) {
       return;
     }
-
     setDeleting(true);
     await supabase.from("face_embeddings").delete().eq("event_id", eventId);
     await supabase.from("photos").delete().eq("event_id", eventId);
     await supabase.from("guest_sessions").delete().eq("event_id", eventId);
     await supabase.from("events").delete().eq("id", eventId);
-
     router.push("/dashboard");
     router.refresh();
   }
 
-  async function handleFixDriveUrls() {
-    setFixing(true);
-    setFixResult(null);
+  async function handleReconnectDrive() {
+    setReconnecting(true);
     try {
-      const res = await fetch("/api/google-drive/fix-urls", {
+      const res = await fetch("/api/google-drive/auth-url", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ eventId }),
       });
       const data = await res.json();
-      setFixResult(`Fixed ${data.fixed} photos`);
-      router.refresh();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert(data.error || "Failed to get Google auth URL");
+        setReconnecting(false);
+      }
     } catch {
-      setFixResult("Failed to fix photos");
+      alert("Failed to reconnect Google Drive. Check your Google OAuth config.");
+      setReconnecting(false);
     }
-    setFixing(false);
   }
 
   return (
     <div className="flex items-center gap-2">
       {hasdrivePhotos && (
         <button
-          onClick={handleFixDriveUrls}
-          disabled={fixing}
+          onClick={handleReconnectDrive}
+          disabled={reconnecting}
+          title="Photos showing blank? Click to refresh Google Drive connection"
           className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-100 disabled:opacity-50"
         >
-          {fixing ? (
+          {reconnecting ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
           ) : (
-            <RefreshCw className="h-3.5 w-3.5" />
+            <HardDrive className="h-3.5 w-3.5" />
           )}
-          {fixing ? "Fixing..." : fixResult || "Fix Drive Photos"}
+          {reconnecting ? "Connecting..." : "Reconnect Drive"}
         </button>
       )}
       <button

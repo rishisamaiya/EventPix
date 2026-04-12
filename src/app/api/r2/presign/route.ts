@@ -16,6 +16,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
+  // Guard: verify all R2 env vars are present before attempting
+  const missingVars = ["R2_ACCOUNT_ID","R2_ACCESS_KEY_ID","R2_SECRET_ACCESS_KEY","R2_BUCKET_NAME"]
+    .filter((v) => !process.env[v]);
+  if (missingVars.length > 0) {
+    return NextResponse.json(
+      { error: `R2 not configured — missing Vercel env vars: ${missingVars.join(", ")}` },
+      { status: 500 }
+    );
+  }
+
   // Verify user owns the event
   const { data: event } = await supabase
     .from("events")

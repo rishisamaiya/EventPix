@@ -231,10 +231,13 @@ export function PhotoUploader({ eventId, onComplete }: PhotoUploaderProps) {
                   </div>
                 )}
                 {fileItem.status === "error" && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-red-500/60 p-1">
+                  <div
+                    className="absolute inset-0 flex flex-col items-center justify-center bg-red-500/80 p-1 cursor-help"
+                    title={fileItem.error}
+                  >
                     <AlertCircle className="h-4 w-4 text-white" />
                     <span className="mt-0.5 text-center text-[9px] leading-tight text-white">
-                      {fileItem.error?.slice(0, 20)}
+                      Error
                     </span>
                   </div>
                 )}
@@ -249,6 +252,20 @@ export function PhotoUploader({ eventId, onComplete }: PhotoUploaderProps) {
               </div>
             ))}
           </div>
+
+          {/* Error summary — show full message */}
+          {files.some((f) => f.status === "error") && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              <p className="mb-1 font-semibold flex items-center gap-1.5">
+                <AlertCircle className="h-4 w-4" /> Upload failed
+              </p>
+              {files.filter((f) => f.status === "error").map((f, i) => (
+                <p key={i} className="text-xs text-red-600 mt-0.5">
+                  {f.file.name}: {f.error}
+                </p>
+              ))}
+            </div>
+          )}
 
           {/* Actions */}
           {!processing && files.some((f) => f.status === "pending") && (
