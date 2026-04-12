@@ -38,8 +38,8 @@ const CARDS = [
     faceBox: { top: "14%", left: "28%" },
   },
   {
-    // Henna/mehendi on hands — NO face detection box
-    photo: "https://images.unsplash.com/photo-1598894736497-2f7e3bfae9c8?w=320&h=400&fit=crop&q=75",
+    // Real Indian mehendi photo — NO face detection box
+    photo: "/mehendi-hands.png",
     label: "Mehendi", badge: "12 matches",
     pos: "bottom-[18%] -left-[22%]", anim: "animate-float-slow", rotate: "4deg", delay: "delay-1000", size: "w-40 h-48",
     faceBox: null,
