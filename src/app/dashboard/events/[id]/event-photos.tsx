@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ImageIcon, ScanFace, Trash2, HardDrive, Upload } from "lucide-react";
+import { ImageIcon, ScanFace, Trash2, HardDrive, Upload, RefreshCw, Loader2 } from "lucide-react";
 import { PhotoUploader } from "@/components/photo-uploader";
 import { GoogleDrivePicker } from "@/components/google-drive-picker";
 import { FaceIndexer } from "@/components/face-indexer";
@@ -29,8 +29,27 @@ export function EventPhotos({
   const [photos, setPhotos] = useState(initialPhotos);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [sourceTab, setSourceTab] = useState<"drive" | "upload">("drive");
+  const [reindexing, setReindexing] = useState(false);
   const router = useRouter();
   const supabase = createClient();
+
+  async function handleReindexWithAWS() {
+    if (!confirm(`This will clear all existing face data and re-index all ${photos.length} photos using AWS Rekognition. Continue?`)) return;
+    setReindexing(true);
+    try {
+      const res = await fetch("/api/clear-embeddings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId }),
+      });
+      if (!res.ok) throw new Error("Failed to clear");
+      router.refresh();
+    } catch (err) {
+      alert("Failed to reset face data. Please try again.");
+    } finally {
+      setReindexing(false);
+    }
+  }
 
   async function deletePhoto(photoId: string) {
     setDeleting(photoId);
@@ -96,14 +115,37 @@ export function EventPhotos({
         <PhotoUploader eventId={eventId} onComplete={() => router.refresh()} />
       )}
 
-      {/* Face Indexer for unindexed photos */}
+      {/* Face Indexing — always visible when photos exist */}
       {photos.length > 0 && (
-        <div className="mt-4">
+        <div className="mt-4 space-y-3">
           <FaceIndexer
             eventId={eventId}
             unindexedCount={photos.filter((p) => !p.faces_indexed).length}
             onComplete={() => router.refresh()}
           />
+          {/* Show Re-index button when all photos are already indexed (old face-api.js data) */}
+          {photos.every((p) => p.faces_indexed) && (
+            <div className="flex items-center justify-between rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3">
+              <div>
+                <p className="text-sm font-medium text-indigo-800">Re-index with AWS Rekognition</p>
+                <p className="text-xs text-indigo-600">
+                  Clears old face data and re-indexes using AWS for much better accuracy.
+                </p>
+              </div>
+              <button
+                onClick={handleReindexWithAWS}
+                disabled={reindexing}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {reindexing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                {reindexing ? "Clearing..." : "Re-index Now"}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
