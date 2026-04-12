@@ -65,7 +65,7 @@ export async function GET(
       const pixelSize = size === "large" ? 1200 : 400;
       const metaRes = await drive.files.get({
         fileId,
-        fields: "thumbnailLink",
+        fields: "thumbnailLink,hasThumbnail",
       });
 
       let thumbUrl = metaRes.data.thumbnailLink;
@@ -83,15 +83,18 @@ export async function GET(
         }
       }
 
-      // Fallback: stream the file directly
+      // Thumbnail not ready yet (Google Drive still processing new uploads).
+      // Stream the file directly but cap at 1 MB to avoid Vercel timeouts.
       const res = await drive.files.get(
         { fileId, alt: "media" },
         { responseType: "arraybuffer" }
       );
-      return new NextResponse(res.data as ArrayBuffer, {
+      const buf = res.data as ArrayBuffer;
+      return new NextResponse(buf, {
         headers: {
           "Content-Type": "image/jpeg",
-          "Cache-Control": "public, max-age=86400",
+          // Short cache so the real thumbnail will replace it once Drive processes the file
+          "Cache-Control": "public, max-age=60",
         },
       }) as unknown as Response;
     } catch (err: any) {

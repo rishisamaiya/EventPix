@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ImageIcon, ScanFace, Trash2, HardDrive, Upload, RefreshCw, Loader2 } from "lucide-react";
+import { ImageIcon, ScanFace, Trash2, HardDrive, Upload, RefreshCw, Loader2, Clock } from "lucide-react";
 import { PhotoUploader } from "@/components/photo-uploader";
 import { GoogleDrivePicker } from "@/components/google-drive-picker";
 import { FaceIndexer } from "@/components/face-indexer";
@@ -30,8 +30,15 @@ export function EventPhotos({
   const [deleting, setDeleting] = useState<string | null>(null);
   const [sourceTab, setSourceTab] = useState<"drive" | "upload">("drive");
   const [reindexing, setReindexing] = useState(false);
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
   const router = useRouter();
   const supabase = createClient();
+
+  // Count how many images failed to load — if many fail, Drive thumbs are still processing
+  const failedCount = failedImages.size;
+  const drivePhotos = photos.filter((p) => p.drive_file_id);
+  const thumbsStillProcessing =
+    drivePhotos.length > 0 && failedCount > drivePhotos.length / 2;
 
   async function handleReindexWithAWS() {
     if (!confirm(`This will clear all existing face data and re-index all ${photos.length} photos using AWS Rekognition. Continue?`)) return;
@@ -153,13 +160,26 @@ export function EventPhotos({
       {/* Existing Photos Grid */}
       {photos.length > 0 && (
         <div className="mt-6">
-          <div className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
-            <ScanFace className="h-4 w-4" />
-            <span>
-              {photos.filter((p) => p.faces_indexed).length} indexed,{" "}
-              {photos.reduce((sum, p) => sum + (p.face_count || 0), 0)} faces
-              found
-            </span>
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <ScanFace className="h-4 w-4" />
+              <span>
+                {photos.filter((p) => p.faces_indexed).length} indexed,{" "}
+                {photos.reduce((sum, p) => sum + (p.face_count || 0), 0)} faces found
+              </span>
+            </div>
+            {thumbsStillProcessing && (
+              <div className="flex items-center gap-1.5 rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-xs text-amber-700">
+                <Clock className="h-3.5 w-3.5 flex-shrink-0" />
+                Google Drive is still generating thumbnails for new photos — refresh in ~2 min
+                <button
+                  onClick={() => router.refresh()}
+                  className="ml-1 font-semibold underline hover:no-underline"
+                >
+                  Refresh
+                </button>
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
             {photos.map((photo) => (
@@ -173,6 +193,9 @@ export function EventPhotos({
                   className="h-full w-full object-cover"
                   loading="lazy"
                   referrerPolicy="no-referrer"
+                  onError={() =>
+                    setFailedImages((prev) => new Set(prev).add(photo.id))
+                  }
                 />
                 {photo.drive_file_id && (
                   <div className="absolute left-1 top-1">
