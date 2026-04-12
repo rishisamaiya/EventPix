@@ -9,6 +9,8 @@ import {
   ScanFace,
   X,
   Cloud,
+  RefreshCw,
+  Zap,
 } from "lucide-react";
 
 interface PhotoUploaderProps {
@@ -19,6 +21,7 @@ interface PhotoUploaderProps {
 type UploadStatus = "pending" | "uploading" | "indexing" | "done" | "error";
 
 interface FileItem {
+  id: string;
   file: File;
   preview: string;
   status: UploadStatus;
@@ -31,16 +34,38 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+// Fetch with a per-call timeout. Throws on timeout.
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit,
+  timeoutMs: number
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (err: any) {
+    if (err.name === "AbortError") throw new Error(`Timed out after ${timeoutMs / 1000}s`);
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const CONCURRENCY = 3; // upload 3 photos at once
+
 export function PhotoUploader({ eventId, onComplete }: PhotoUploaderProps) {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [processing, setProcessing] = useState(false);
-  const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const [completed, setCompleted] = useState(0);
+  const [total, setTotal] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const selected = e.target.files;
     if (!selected) return;
     const newFiles: FileItem[] = Array.from(selected).map((file) => ({
+      id: `${file.name}-${file.size}-${Math.random()}`,
       file,
       preview: URL.createObjectURL(file),
       status: "pending" as UploadStatus,
@@ -49,114 +74,123 @@ export function PhotoUploader({ eventId, onComplete }: PhotoUploaderProps) {
     setFiles((prev) => [...prev, ...newFiles]);
   }
 
-  function removeFile(index: number) {
+  function removeFile(id: string) {
     setFiles((prev) => {
-      URL.revokeObjectURL(prev[index].preview);
-      return prev.filter((_, i) => i !== index);
+      const item = prev.find((f) => f.id === id);
+      if (item) URL.revokeObjectURL(item.preview);
+      return prev.filter((f) => f.id !== id);
     });
   }
 
-  const totalSize = files.reduce((sum, f) => sum + f.file.size, 0);
+  function updateFile(id: string, patch: Partial<FileItem>) {
+    setFiles((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)));
+  }
 
-  const processPhotos = useCallback(async () => {
-    const pending = files.filter((f) => f.status === "pending");
-    if (pending.length === 0) return;
+  async function processOne(item: FileItem): Promise<void> {
+    updateFile(item.id, { status: "uploading", error: undefined });
 
-    setProcessing(true);
-    setProgress({ current: 0, total: pending.length });
-    let processed = 0;
-
-    for (let i = 0; i < files.length; i++) {
-      const fileItem = files[i];
-      if (fileItem.status !== "pending") continue;
-
-      processed++;
-      setProgress({ current: processed, total: pending.length });
-
-      // Step 1: Get presigned URL from our server + create DB record
-      setFiles((prev) =>
-        prev.map((f, idx) => (idx === i ? { ...f, status: "uploading" } : f))
-      );
-
-      try {
-        const presignRes = await fetch("/api/r2/presign", {
+    try {
+      // Step 1: Get presigned URL (15s timeout)
+      const presignRes = await fetchWithTimeout(
+        "/api/r2/presign",
+        {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             eventId,
-            filename: fileItem.file.name,
-            contentType: fileItem.file.type || "image/jpeg",
-            fileSize: fileItem.file.size,
+            filename: item.file.name,
+            contentType: item.file.type || "image/jpeg",
+            fileSize: item.file.size,
           }),
-        });
+        },
+        15_000
+      );
 
-        if (!presignRes.ok) {
-          const err = await presignRes.json();
-          throw new Error(err.error || "Failed to get upload URL");
-        }
+      if (!presignRes.ok) {
+        const err = await presignRes.json().catch(() => ({}));
+        throw new Error(err.error || `Presign failed (${presignRes.status})`);
+      }
 
-        const { uploadUrl, photoId } = await presignRes.json();
+      const { uploadUrl, photoId } = await presignRes.json();
 
-        // Step 2: Upload directly to Cloudflare R2 via presigned URL
-        const uploadRes = await fetch(uploadUrl, {
+      // Step 2: Upload to R2 (2 min timeout — large files on slow connections)
+      const uploadRes = await fetchWithTimeout(
+        uploadUrl,
+        {
           method: "PUT",
-          body: fileItem.file,
-          headers: { "Content-Type": fileItem.file.type || "image/jpeg" },
-        });
+          body: item.file,
+          headers: { "Content-Type": item.file.type || "image/jpeg" },
+        },
+        120_000
+      );
 
-        if (!uploadRes.ok) throw new Error("Upload to R2 failed");
+      if (!uploadRes.ok) throw new Error(`R2 upload failed (${uploadRes.status})`);
 
-        // Step 3: Trigger Rekognition indexing server-side
-        setFiles((prev) =>
-          prev.map((f, idx) => (idx === i ? { ...f, status: "indexing" } : f))
-        );
+      // Step 3: Rekognition indexing (60s timeout)
+      updateFile(item.id, { status: "indexing" });
 
-        const indexRes = await fetch("/api/rekognition/index-photo", {
+      const indexRes = await fetchWithTimeout(
+        "/api/rekognition/index-photo",
+        {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ photoId, eventId }),
-        });
+        },
+        60_000
+      );
 
-        const indexData = indexRes.ok ? await indexRes.json() : { faceCount: 0 };
-
-        setFiles((prev) =>
-          prev.map((f, idx) =>
-            idx === i
-              ? { ...f, status: "done", facesFound: indexData.faceCount ?? 0 }
-              : f
-          )
-        );
-      } catch (err: any) {
-        setFiles((prev) =>
-          prev.map((f, idx) =>
-            idx === i
-              ? { ...f, status: "error", error: err.message ?? "Upload failed" }
-              : f
-          )
-        );
-      }
+      const indexData = indexRes.ok ? await indexRes.json() : { faceCount: 0 };
+      updateFile(item.id, { status: "done", facesFound: indexData.faceCount ?? 0 });
+    } catch (err: any) {
+      updateFile(item.id, {
+        status: "error",
+        error: err.message ?? "Upload failed",
+      });
     }
+  }
 
-    setProcessing(false);
-    onComplete();
-  }, [files, eventId, onComplete]);
+  const processPhotos = useCallback(
+    async (targetStatus: UploadStatus = "pending") => {
+      const targets = files.filter((f) => f.status === targetStatus);
+      if (targets.length === 0) return;
+
+      setProcessing(true);
+      setCompleted(0);
+      setTotal(targets.length);
+
+      // Process in batches of CONCURRENCY
+      for (let i = 0; i < targets.length; i += CONCURRENCY) {
+        const batch = targets.slice(i, i + CONCURRENCY);
+        await Promise.all(batch.map((item) => processOne(item)));
+        setCompleted((c) => c + batch.length);
+      }
+
+      setProcessing(false);
+      onComplete();
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [files, eventId, onComplete]
+  );
 
   const doneCount = files.filter((f) => f.status === "done").length;
+  const errorCount = files.filter((f) => f.status === "error").length;
+  const pendingCount = files.filter((f) => f.status === "pending").length;
   const totalFaces = files.reduce((sum, f) => sum + f.facesFound, 0);
   const progressPercent =
-    progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
+    total > 0 ? Math.round((completed / total) * 100) : 0;
+  const totalSize = files.reduce((sum, f) => sum + f.file.size, 0);
 
   return (
     <div className="space-y-4">
       {/* Drop Zone */}
       <div
-        onClick={() => fileInputRef.current?.click()}
-        className="cursor-pointer rounded-xl border-2 border-dashed border-border p-8 text-center transition hover:border-primary/40 hover:bg-primary/5"
+        onClick={() => !processing && fileInputRef.current?.click()}
+        className={`cursor-pointer rounded-xl border-2 border-dashed border-border p-8 text-center transition hover:border-primary/40 hover:bg-primary/5 ${processing ? "pointer-events-none opacity-60" : ""}`}
       >
         <Cloud className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
         <p className="mb-1 text-sm font-medium">Click to select photos</p>
         <p className="text-xs text-muted-foreground">
-          JPG, PNG, WebP — stored on Cloudflare R2
+          JPG, PNG, WebP — stored on Cloudflare R2 · {CONCURRENCY} at a time
         </p>
         <input
           ref={fileInputRef}
@@ -172,17 +206,20 @@ export function PhotoUploader({ eventId, onComplete }: PhotoUploaderProps) {
         <>
           {/* Size summary */}
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>{files.length} files selected</span>
+            <span>{files.length} files · {doneCount} done · {errorCount} failed</span>
             <span>{formatBytes(totalSize)} total</span>
           </div>
 
-          {/* Progress */}
+          {/* Progress bar */}
           {processing && (
             <div className="rounded-lg bg-primary/5 p-4">
               <div className="mb-2 flex items-center justify-between text-sm">
                 <span className="flex items-center gap-2 font-medium">
                   <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  Uploading {progress.current} of {progress.total}
+                  {completed} / {total} photos processed
+                  <span className="text-xs text-muted-foreground font-normal">
+                    (uploading {CONCURRENCY} at a time — failed photos skipped automatically)
+                  </span>
                 </span>
                 <span className="text-muted-foreground">{progressPercent}%</span>
               </div>
@@ -195,32 +232,67 @@ export function PhotoUploader({ eventId, onComplete }: PhotoUploaderProps) {
             </div>
           )}
 
+          {/* Success summary */}
           {!processing && doneCount > 0 && (
             <div className="flex items-center gap-3 rounded-lg bg-green-50 p-4 text-sm">
-              <CheckCircle2 className="h-5 w-5 text-green-600" />
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />
               <span>
                 <strong>{doneCount}</strong> photos uploaded to R2 ·{" "}
                 <strong>{totalFaces}</strong> faces indexed via AWS
+                {errorCount > 0 && (
+                  <span className="ml-2 text-amber-700">
+                    · <strong>{errorCount}</strong> failed (see below to retry)
+                  </span>
+                )}
               </span>
+            </div>
+          )}
+
+          {/* Error summary + retry */}
+          {errorCount > 0 && !processing && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="font-semibold flex items-center gap-1.5 text-red-700">
+                  <AlertCircle className="h-4 w-4" />
+                  {errorCount} photo{errorCount !== 1 ? "s" : ""} failed — click to retry
+                </p>
+                <button
+                  onClick={() => processPhotos("error")}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 transition"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Retry {errorCount} Failed
+                </button>
+              </div>
+              <div className="max-h-32 overflow-y-auto space-y-0.5">
+                {files.filter((f) => f.status === "error").map((f) => (
+                  <p key={f.id} className="text-xs text-red-600">
+                    <span className="font-medium">{f.file.name}</span>: {f.error}
+                  </p>
+                ))}
+              </div>
             </div>
           )}
 
           {/* Thumbnails */}
           <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8">
-            {files.map((fileItem, index) => (
+            {files.map((fileItem) => (
               <div
-                key={index}
+                key={fileItem.id}
                 className="group relative aspect-square overflow-hidden rounded-lg bg-muted"
               >
                 <img src={fileItem.preview} alt="" className="h-full w-full object-cover" />
+
                 {fileItem.status === "uploading" && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/60">
                     <Loader2 className="h-5 w-5 animate-spin text-white" />
+                    <span className="text-[9px] text-white/80">Uploading</span>
                   </div>
                 )}
                 {fileItem.status === "indexing" && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/60">
                     <ScanFace className="h-5 w-5 animate-pulse text-amber-400" />
+                    <span className="text-[9px] text-amber-300">Indexing</span>
                   </div>
                 )}
                 {fileItem.status === "done" && (
@@ -237,13 +309,13 @@ export function PhotoUploader({ eventId, onComplete }: PhotoUploaderProps) {
                   >
                     <AlertCircle className="h-4 w-4 text-white" />
                     <span className="mt-0.5 text-center text-[9px] leading-tight text-white">
-                      Error
+                      Failed
                     </span>
                   </div>
                 )}
                 {fileItem.status === "pending" && (
                   <button
-                    onClick={(e) => { e.stopPropagation(); removeFile(index); }}
+                    onClick={(e) => { e.stopPropagation(); removeFile(fileItem.id); }}
                     className="absolute right-1 top-1 hidden rounded-full bg-black/60 p-0.5 text-white group-hover:block"
                   >
                     <X className="h-3 w-3" />
@@ -253,29 +325,15 @@ export function PhotoUploader({ eventId, onComplete }: PhotoUploaderProps) {
             ))}
           </div>
 
-          {/* Error summary — show full message */}
-          {files.some((f) => f.status === "error") && (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-              <p className="mb-1 font-semibold flex items-center gap-1.5">
-                <AlertCircle className="h-4 w-4" /> Upload failed
-              </p>
-              {files.filter((f) => f.status === "error").map((f, i) => (
-                <p key={i} className="text-xs text-red-600 mt-0.5">
-                  {f.file.name}: {f.error}
-                </p>
-              ))}
-            </div>
-          )}
-
           {/* Actions */}
-          {!processing && files.some((f) => f.status === "pending") && (
+          {!processing && pendingCount > 0 && (
             <div className="flex gap-3">
               <button
-                onClick={processPhotos}
+                onClick={() => processPhotos("pending")}
                 className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
               >
-                <ScanFace className="h-4 w-4" />
-                Upload & Index ({files.filter((f) => f.status === "pending").length} photos)
+                <Zap className="h-4 w-4" />
+                Upload & Index ({pendingCount} photos)
               </button>
               <button
                 onClick={() => { files.forEach((f) => URL.revokeObjectURL(f.preview)); setFiles([]); }}
