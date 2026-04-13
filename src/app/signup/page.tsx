@@ -44,6 +44,8 @@ export default function SignupPage() {
       password,
       options: {
         data: { full_name: name },
+        // After clicking confirmation email: /auth/callback exchanges code → /dashboard
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
       },
     });
 

@@ -1,18 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Camera, Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const linkExpired = searchParams.get("error") === "link-expired";
   const supabase = createClient();
 
   async function handleLogin(e: React.FormEvent) {
@@ -48,6 +50,14 @@ export default function LoginPage() {
 
         <div className="rounded-2xl border border-border bg-card p-8 shadow-sm">
           <form onSubmit={handleLogin} className="space-y-4">
+            {linkExpired && (
+              <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
+                That reset link has expired or already been used.{" "}
+                <Link href="/forgot-password" className="font-semibold underline">
+                  Request a new one.
+                </Link>
+              </div>
+            )}
             {error && (
               <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
                 {error}
@@ -115,5 +125,13 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }
