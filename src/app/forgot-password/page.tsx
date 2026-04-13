@@ -1,15 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { Camera, CheckCircle2, ArrowLeft } from "lucide-react";
+import { useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { Camera, CheckCircle2, ArrowLeft, AlertCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
-export default function ForgotPasswordPage() {
+function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
+  const searchParams = useSearchParams();
+  const linkExpired = searchParams.get("expired") === "1";
   const supabase = createClient();
 
   async function handleSubmit(e: React.FormEvent) {
@@ -99,6 +102,12 @@ export default function ForgotPasswordPage() {
 
         <div className="rounded-2xl border border-border bg-card p-8 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-4">
+            {linkExpired && (
+              <div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>Your reset link has expired (links are valid for 1 hour). Enter your email below to get a new one.</span>
+              </div>
+            )}
             {error && (
               <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
                 {error}
@@ -134,5 +143,13 @@ export default function ForgotPasswordPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function ForgotPasswordPage() {
+  return (
+    <Suspense>
+      <ForgotPasswordForm />
+    </Suspense>
   );
 }

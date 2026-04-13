@@ -4,6 +4,7 @@ import {
   Camera, Share2, Lock, ScanFace, ArrowRight, Check, X,
   Download, Zap, Shield, QrCode, Smartphone, Image as ImageIcon,
 } from "lucide-react";
+import { AuthErrorHandler } from "@/components/auth-error-handler";
 
 /* ─── real wedding photos from Unsplash ─────────────────────────────────── */
 /* phone grid: 9 small wedding thumbnails */
@@ -163,6 +164,8 @@ function PhoneMockup() {
 export default function HomePage() {
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#F5F8FF]">
+      {/* Catches Supabase auth errors in URL hash (expired links etc.) */}
+      <AuthErrorHandler />
 
       {/* ── Navbar ── */}
       <nav className="fixed top-0 z-50 w-full border-b border-blue-100/80 bg-[#F5F8FF]/90 backdrop-blur-xl">
