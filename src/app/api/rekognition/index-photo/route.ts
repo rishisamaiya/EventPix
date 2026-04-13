@@ -140,12 +140,15 @@ export async function POST(request: NextRequest) {
     // Send to Rekognition
     const faceCount = await indexFacesInPhoto(eventId, photoId, imageBytes);
 
-    // Only mark as fully indexed if faces were actually found.
-    // Photos with 0 faces stay as faces_indexed=false so they can be retried
-    // via the "Retry zero-face" option without polluting the main index queue.
+    // Always mark as indexed after a successful API call — even if 0 faces.
+    // "0 faces" means the photo was tried and Rekognition confirmed no faces
+    // (venue shots, decorations, etc.). Leaving these as faces_indexed=false
+    // would re-bill for the same photo on every "Index New" click.
+    // Only genuine errors (network failures, timeouts) keep faces_indexed=false
+    // so they can be retried.
     await supabase
       .from("photos")
-      .update({ faces_indexed: faceCount > 0, face_count: faceCount })
+      .update({ faces_indexed: true, face_count: faceCount })
       .eq("id", photoId);
 
     return NextResponse.json({ success: true, faceCount });

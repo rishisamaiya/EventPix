@@ -154,6 +154,24 @@ export function EventPhotos({
       {/* Face Indexing — always visible when photos exist */}
       {photos.length > 0 && (
         <div className="mt-4 space-y-3">
+          {/* Cost info bar */}
+          {(() => {
+            const noFaceCount = photos.filter((p) => p.faces_indexed && p.face_count === 0).length;
+            const withFaceCount = photos.filter((p) => p.face_count > 0).length;
+            const unindexed = photos.filter((p) => !p.faces_indexed).length;
+            if (photos.every((p) => p.faces_indexed) && noFaceCount > 0) {
+              return (
+                <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
+                  <span>✅ {withFaceCount} photos indexed with faces</span>
+                  <span>·</span>
+                  <span>⬜ {noFaceCount} photos had no faces (venue/décor shots) — skipped to save cost</span>
+                  {unindexed > 0 && <><span>·</span><span>⏳ {unindexed} need indexing</span></>}
+                </div>
+              );
+            }
+            return null;
+          })()}
+
           {/* Amber: index only new unindexed photos */}
           <FaceIndexer
             eventId={eventId}
