@@ -21,14 +21,20 @@ export function getCollectionId(eventId: string): string {
   return `eventpix-${eventId}`;
 }
 
+// In-process cache so we only call CreateCollection once per event per server instance.
+// This avoids an extra AWS round-trip for every single IndexFaces call.
+const _collectionCache = new Set<string>();
+
 // Create collection for an event (idempotent — safe to call multiple times)
 export async function ensureCollection(eventId: string): Promise<string> {
   const collectionId = getCollectionId(eventId);
+  if (_collectionCache.has(collectionId)) return collectionId;
   try {
     await client.send(new CreateCollectionCommand({ CollectionId: collectionId }));
   } catch (err: any) {
     if (err.name !== "ResourceAlreadyExistsException") throw err;
   }
+  _collectionCache.add(collectionId);
   return collectionId;
 }
 
