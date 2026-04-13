@@ -11,8 +11,9 @@ import {
   Search,
   X,
   ImageIcon,
-  Loader2,
   Check,
+  RefreshCw,
+  Clock,
 } from "lucide-react";
 import { SelfieCapture } from "@/components/selfie-capture";
 
@@ -35,6 +36,56 @@ type Event = {
   allow_download: boolean;
 };
 
+// What we persist in localStorage
+type CachedSearch = {
+  eventId: string;
+  myPhotos: MatchedPhoto[];
+  searchedAt: number;       // timestamp
+  photoCountAtSearch: number; // to detect if host added new photos
+};
+
+const CACHE_KEY = (eventId: string) => `eventpix_search_${eventId}`;
+const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+function loadCache(eventId: string): CachedSearch | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY(eventId));
+    if (!raw) return null;
+    const parsed: CachedSearch = JSON.parse(raw);
+    // Expire after 7 days
+    if (Date.now() - parsed.searchedAt > CACHE_MAX_AGE_MS) {
+      localStorage.removeItem(CACHE_KEY(eventId));
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveCache(eventId: string, myPhotos: MatchedPhoto[], photoCount: number) {
+  try {
+    const data: CachedSearch = {
+      eventId,
+      myPhotos,
+      searchedAt: Date.now(),
+      photoCountAtSearch: photoCount,
+    };
+    localStorage.setItem(CACHE_KEY(eventId), JSON.stringify(data));
+  } catch {
+    // localStorage full or unavailable — silently ignore
+  }
+}
+
+function formatAge(ts: number): string {
+  const mins = Math.floor((Date.now() - ts) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
 export function GuestGallery({
   event,
   photos,
@@ -54,6 +105,23 @@ export function GuestGallery({
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
   const [selectionMode, setSelectionMode] = useState(false);
+  const [cachedAt, setCachedAt] = useState<number | null>(null);
+  const [newPhotosAvailable, setNewPhotosAvailable] = useState(false);
+
+  // Restore previous search from localStorage on mount
+  useEffect(() => {
+    const cached = loadCache(event.id);
+    if (cached && cached.myPhotos.length >= 0) {
+      setMyPhotos(cached.myPhotos);
+      setHasSearched(true);
+      setCachedAt(cached.searchedAt);
+      // Notify if host added photos since last search
+      if (event.photo_count > cached.photoCountAtSearch) {
+        setNewPhotosAvailable(true);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function verifyPin() {
     if (pinInput === event.pin_code) {
@@ -93,10 +161,15 @@ export function GuestGallery({
         throw new Error(errMsg);
       }
 
-      setMyPhotos(data.photos ?? []);
+      const results: MatchedPhoto[] = data.photos ?? [];
+      setMyPhotos(results);
       setHasSearched(true);
       setShowSelfie(false);
       setActiveTab("my");
+      setCachedAt(Date.now());
+      setNewPhotosAvailable(false);
+      // Persist in browser so refresh doesn't re-charge AWS
+      saveCache(event.id, results, event.photo_count);
     } catch (err: any) {
       console.error("Face matching error:", err);
       const msg = err?.message ?? "";
@@ -288,6 +361,37 @@ export function GuestGallery({
           </button>
         </div>
       </div>
+
+      {/* Cache banner — shown when results are restored from localStorage */}
+      {activeTab === "my" && hasSearched && cachedAt && (
+        <div className="flex items-center justify-between gap-3 bg-indigo-50 px-4 py-2 text-xs text-indigo-700">
+          <span className="flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5" />
+            Results from {formatAge(cachedAt)} · saved on your device
+          </span>
+          <button
+            onClick={() => setShowSelfie(true)}
+            className="flex items-center gap-1 font-semibold underline underline-offset-2"
+          >
+            <RefreshCw className="h-3 w-3" />
+            Search again
+          </button>
+        </div>
+      )}
+
+      {/* New photos banner — host added more photos after last search */}
+      {activeTab === "my" && newPhotosAvailable && (
+        <div className="flex items-center justify-between gap-3 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
+          <span>✨ New photos were added to this event since your last search</span>
+          <button
+            onClick={() => setShowSelfie(true)}
+            className="flex items-center gap-1 font-semibold underline underline-offset-2"
+          >
+            <RefreshCw className="h-3 w-3" />
+            Re-search
+          </button>
+        </div>
+      )}
 
       {/* Gallery Grid */}
       <div className="px-0.5 py-0.5">
