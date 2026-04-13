@@ -67,7 +67,8 @@ export function EventPhotos({
   }
 
   async function handleReindexWithAWS() {
-    if (!confirm(`This will clear all existing face data and re-index all ${photos.length} photos using AWS Rekognition. Continue?`)) return;
+    const estimatedCost = (photos.length * 0.001).toFixed(3);
+    if (!confirm(`⚠️ AWS COST WARNING\n\nThis will DELETE all existing face data and re-index ALL ${photos.length} photos.\n\nEstimated AWS cost: ~$${estimatedCost} (at $0.001/image after free tier)\n\nOnly do this if face matching accuracy is wrong. For new photos, use "Index New" instead.\n\nContinue?`)) return;
     setReindexing(true);
     try {
       const res = await fetch("/api/clear-embeddings", {
@@ -157,24 +158,25 @@ export function EventPhotos({
           <FaceIndexer
             eventId={eventId}
             unindexedCount={photos.filter((p) => !p.faces_indexed).length}
+            totalPhotoCount={photos.length}
             onComplete={() => router.refresh()}
           />
 
           {/* Blue: Re-index All — only show when everything is indexed */}
           {photos.every((p) => p.faces_indexed) && (
-            <div className="flex items-center justify-between rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3">
+            <div className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3">
               <div>
-                <p className="text-sm font-medium text-indigo-800">
-                  Re-index All with AWS Rekognition
+                <p className="text-sm font-medium text-red-800">
+                  Re-index All ⚠️ — only if face accuracy is wrong
                 </p>
-                <p className="text-xs text-indigo-600">
-                  Clears all face data and re-indexes every photo. Use only when accuracy needs fixing.
+                <p className="text-xs text-red-600">
+                  Costs ~${(photos.length * 0.001).toFixed(3)} · deletes all face data · re-processes all {photos.length} photos via AWS
                 </p>
               </div>
               <button
                 onClick={handleReindexWithAWS}
                 disabled={reindexing}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
               >
                 {reindexing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                 {reindexing ? "Clearing..." : `Re-index All (${photos.length})`}

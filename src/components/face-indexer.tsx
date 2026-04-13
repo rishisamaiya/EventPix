@@ -7,10 +7,11 @@ import { createClient } from "@/lib/supabase/client";
 interface FaceIndexerProps {
   eventId: string;
   unindexedCount: number;
+  totalPhotoCount: number;
   onComplete: () => void;
 }
 
-export function FaceIndexer({ eventId, unindexedCount, onComplete }: FaceIndexerProps) {
+export function FaceIndexer({ eventId, unindexedCount, totalPhotoCount, onComplete }: FaceIndexerProps) {
   const [processing, setProcessing] = useState(false);
   const [statusText, setStatusText] = useState("");
   const [progress, setProgress] = useState({ current: 0, total: 0, faces: 0 });
@@ -20,7 +21,13 @@ export function FaceIndexer({ eventId, unindexedCount, onComplete }: FaceIndexer
   const [clearing, setClearing] = useState(false);
   const supabase = createClient();
 
-  const clearAndReindex = useCallback(async () => {
+  const clearAndReindex = useCallback(async (totalPhotos: number) => {
+    const estimatedCost = (totalPhotos * 0.001).toFixed(3);
+    const confirmed = window.confirm(
+      `⚠️ AWS COST WARNING\n\nThis will DELETE all existing face data and re-index ALL ${totalPhotos} photos from scratch.\n\nEstimated AWS cost: ~$${estimatedCost} (at $0.001/image after free tier)\n\nOnly do this if face accuracy is wrong. To index only NEW photos, use "Index Faces" instead.\n\nContinue?`
+    );
+    if (!confirmed) return;
+
     setClearing(true);
     try {
       const res = await fetch("/api/clear-embeddings", {
@@ -145,12 +152,13 @@ export function FaceIndexer({ eventId, unindexedCount, onComplete }: FaceIndexer
             </div>
           </div>
           <button
-            onClick={clearAndReindex}
+            onClick={() => clearAndReindex(totalPhotoCount)}
             disabled={clearing}
-            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-amber-400 bg-white px-3 py-1.5 text-xs font-medium text-amber-700 transition hover:bg-amber-100 disabled:opacity-50"
+            title={`Costs ~$${(totalPhotoCount * 0.001).toFixed(3)} — only use if face accuracy is wrong`}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${clearing ? "animate-spin" : ""}`} />
-            {clearing ? "Clearing..." : "Clear & Re-index"}
+            {clearing ? "Clearing..." : `Clear & Re-index All (≈$${(totalPhotoCount * 0.001).toFixed(3)})`}
           </button>
         </div>
       ) : processing ? (
@@ -181,29 +189,29 @@ export function FaceIndexer({ eventId, unindexedCount, onComplete }: FaceIndexer
             <AlertCircle className="h-5 w-5 flex-shrink-0 text-amber-600" />
             <div>
               <p className="text-sm font-medium text-amber-800">
-                {unindexedCount} photos need face indexing
+                {unindexedCount} new photos need face indexing
               </p>
               <p className="text-xs text-amber-600">
-                Uses AWS Rekognition — much more accurate than before.
+                Estimated cost: ~${(unindexedCount * 0.001).toFixed(3)} for {unindexedCount} images × $0.001/image
               </p>
             </div>
           </div>
           <div className="flex gap-2">
             <button
-              onClick={clearAndReindex}
+              onClick={() => clearAndReindex(totalPhotoCount)}
               disabled={clearing}
-              title="Clear old face data and re-index"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-400 bg-white px-3 py-2 text-xs font-medium text-amber-700 transition hover:bg-amber-100 disabled:opacity-50"
+              title={`DANGER: costs ~$${(totalPhotoCount * 0.001).toFixed(3)} — re-indexes ALL ${totalPhotoCount} photos`}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 bg-white px-3 py-2 text-xs font-medium text-red-500 transition hover:bg-red-50 disabled:opacity-50"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${clearing ? "animate-spin" : ""}`} />
-              {clearing ? "Clearing..." : "Clear Old"}
+              {clearing ? "Clearing..." : "Re-index All ⚠️"}
             </button>
             <button
               onClick={indexFaces}
               className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-700"
             >
               <Play className="h-4 w-4" />
-              Index Faces
+              Index {unindexedCount} New (≈${(unindexedCount * 0.001).toFixed(3)})
             </button>
           </div>
         </div>
