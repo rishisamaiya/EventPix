@@ -28,7 +28,7 @@ function ConfirmHandler() {
     const supabase = createClient();
 
     supabase.auth
-      .verifyOtp({ token_hash, type: type as "recovery" | "email" | "signup" | "invite" | "magiclink" | "email_change" | "phone_change" })
+      .verifyOtp({ token_hash, type: type as "recovery" | "email" | "signup" | "invite" | "magiclink" | "email_change" })
       .then(({ error }) => {
         if (error) {
           console.error("verifyOtp error:", error.message);
