@@ -223,7 +223,7 @@ export default function HomePage() {
               </Link>
             </div>
             <div className="mt-10 flex flex-wrap justify-center gap-8 md:justify-start">
-              {[{ v:"99%",l:"Face Accuracy"},{ v:"< 1s",l:"Search Speed"},{ v:"10GB",l:"Free Storage"}].map(({v,l}) => (
+              {[{ v:"99%",l:"Face Accuracy"},{ v:"< 1s",l:"Search Speed"},{ v:"5GB",l:"Free Storage"}].map(({v,l}) => (
                 <div key={l} className="text-center">
                   <div className="text-2xl font-extrabold text-blue-600">{v}</div>
                   <div className="text-xs font-medium text-slate-400">{l}</div>
@@ -362,7 +362,7 @@ export default function HomePage() {
               { icon:<Lock       className="h-5 w-5"/>, t:"PIN Protection",         d:"Keep galleries private with a PIN code. Only your invited guests can access.",               badge:null,                bg:"from-slate-600 to-slate-700"  },
               { icon:<QrCode     className="h-5 w-5"/>, t:"QR Code Access",         d:"Print a QR code at the venue. Guests scan and find their photos instantly.",                  badge:null,                bg:"from-indigo-500 to-blue-600"  },
               { icon:<Download   className="h-5 w-5"/>, t:"Full-Res Download",      d:"Guests download photos at full quality directly from gallery — no account needed.",           badge:null,                bg:"from-teal-500 to-cyan-600"    },
-              { icon:<Shield     className="h-5 w-5"/>, t:"Cloudflare R2 Storage",  d:"Photos on Cloudflare CDN. 10GB free, zero egress fees — fast worldwide delivery.",           badge:"10GB Free",         bg:"from-orange-400 to-amber-500" },
+              { icon:<Shield     className="h-5 w-5"/>, t:"Cloudflare R2 Storage",  d:"Photos on Cloudflare CDN. 5GB free, zero egress fees — fast worldwide delivery.",           badge:"5GB Free",         bg:"from-orange-400 to-amber-500" },
               { icon:<Smartphone className="h-5 w-5"/>, t:"Mobile First",           d:"Designed for phones. Works perfectly on iOS and Android — no app ever required.",            badge:null,                bg:"from-blue-400 to-indigo-500"  },
             ].map(({icon,t,d,badge,bg}) => (
               <div key={t} className="card-3d cursor-default rounded-2xl border border-blue-100 bg-white p-6">
@@ -417,67 +417,162 @@ export default function HomePage() {
 
       {/* ── Pricing ── */}
       <section id="pricing" className="border-t border-blue-100 bg-[#F5F8FF] py-24">
-        <div className="mx-auto max-w-6xl px-4">
+        <div className="mx-auto max-w-7xl px-4">
           <div className="mb-16 text-center">
             <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-blue-500">Pricing</p>
             <h2 className="mb-3 text-3xl font-bold text-slate-900 sm:text-4xl">Simple, transparent pricing</h2>
-            <p className="text-lg text-slate-400">Start free. Upgrade when you need more storage.</p>
+            <p className="text-lg text-slate-400">Start free. Upgrade when your event needs more.</p>
           </div>
-          <div className="grid items-start gap-6 md:grid-cols-3">
-            {/* Free */}
-            <div className="card-3d rounded-3xl border border-blue-100 bg-white p-8">
-              <p className="mb-2 text-xs font-bold uppercase tracking-widest text-slate-400">Free Event</p>
-              <div className="mb-1"><span className="text-5xl font-extrabold text-slate-900">₹0</span></div>
-              <p className="mb-6 text-sm text-slate-400">No credit card · ever</p>
-              <Link href="/signup" className="mb-8 block rounded-2xl border-2 border-blue-200 bg-white py-3 text-center text-sm font-bold text-blue-600 transition hover:bg-blue-50">
-                Get Started Free
+
+          {/* 5-tier grid: 1 col mobile → 2 col sm → 5 col xl */}
+          <div className="grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-5">
+
+            {/* ── Free ── */}
+            <div className="card-3d rounded-3xl border border-blue-100 bg-white p-6">
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">Free</p>
+              <div className="mb-0.5"><span className="text-4xl font-extrabold text-slate-900">₹0</span></div>
+              <p className="mb-5 text-xs text-slate-400">No credit card · ever</p>
+              <Link href="/signup" className="mb-6 block rounded-xl border-2 border-blue-200 bg-white py-2.5 text-center text-sm font-bold text-blue-600 transition hover:bg-blue-50">
+                Get Started
               </Link>
-              <ul className="space-y-3">
-                {["Google Drive (unlimited photos)","1 active event","50 guests","AWS face recognition","WhatsApp sharing","PIN protection"].map((i) => (
-                  <li key={i} className="flex items-center gap-2.5 text-sm text-slate-500">
-                    <Check className="h-4 w-4 flex-shrink-0 text-blue-400"/>{i}
+              <ul className="space-y-2.5">
+                {[
+                  "5 GB storage",
+                  "1 event",
+                  "100 guests",
+                  "AI face search",
+                  "WhatsApp sharing",
+                  "PIN protection",
+                ].map((i) => (
+                  <li key={i} className="flex items-center gap-2 text-xs text-slate-500">
+                    <Check className="h-3.5 w-3.5 flex-shrink-0 text-blue-400"/>{i}
                   </li>
                 ))}
               </ul>
             </div>
 
-            {/* Starter */}
-            <div className="card-3d relative rounded-3xl border-2 border-blue-500 bg-white p-8 shadow-2xl shadow-blue-100/80 md:-mt-4">
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-blue-500 to-sky-400 px-5 py-1.5 text-xs font-bold text-white shadow-lg">
+            {/* ── Basic ₹299 ── */}
+            <div className="card-3d rounded-3xl border border-blue-100 bg-white p-6">
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">Basic</p>
+              <div className="mb-0.5">
+                <span className="text-4xl font-extrabold text-slate-900">₹299</span>
+              </div>
+              <p className="mb-5 text-xs text-slate-400">per event</p>
+              <Link href="/signup" className="mb-6 block rounded-xl border-2 border-blue-200 bg-white py-2.5 text-center text-sm font-bold text-blue-600 transition hover:bg-blue-50">
+                Get Started
+              </Link>
+              <ul className="space-y-2.5">
+                {[
+                  "15 GB storage",
+                  "1 event",
+                  "200 guests",
+                  "AI face search",
+                  "WhatsApp + QR sharing",
+                  "PIN protection",
+                  "Full-res download",
+                ].map((i) => (
+                  <li key={i} className="flex items-center gap-2 text-xs text-slate-500">
+                    <Check className="h-3.5 w-3.5 flex-shrink-0 text-blue-400"/>{i}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* ── Standard ₹449 — MOST POPULAR ── */}
+            <div className="card-3d relative rounded-3xl border-2 border-blue-500 bg-white p-6 shadow-2xl shadow-blue-100/80 xl:-mt-4">
+              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-r from-blue-500 to-sky-400 px-4 py-1 text-[10px] font-bold text-white shadow-lg">
                 MOST POPULAR
               </div>
-              <p className="mb-2 text-xs font-bold uppercase tracking-widest text-blue-500">Starter Event</p>
-              <div className="mb-1"><span className="text-5xl font-extrabold text-slate-900">₹1,499</span></div>
-              <p className="mb-6 text-sm text-slate-400">per event · 1 year validity</p>
-              <Link href="/signup" className="mb-8 block rounded-2xl bg-gradient-to-r from-blue-500 to-sky-400 py-3 text-center text-sm font-bold text-white shadow-lg shadow-blue-200 transition hover:from-blue-600 hover:to-sky-500">
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-blue-500">Standard</p>
+              <div className="mb-0.5">
+                <span className="text-4xl font-extrabold text-slate-900">₹449</span>
+              </div>
+              <p className="mb-5 text-xs text-slate-400">per event</p>
+              <Link href="/signup" className="mb-6 block rounded-xl bg-gradient-to-r from-blue-500 to-sky-400 py-2.5 text-center text-sm font-bold text-white shadow-lg shadow-blue-200 transition hover:from-blue-600 hover:to-sky-500">
                 Get Started
               </Link>
-              <ul className="space-y-3">
-                {["25 GB on Cloudflare R2","1 event","500 guests","AWS face recognition","Google Drive BYOC","WhatsApp + QR sharing","Download control","Priority support"].map((i) => (
-                  <li key={i} className="flex items-center gap-2.5 text-sm text-slate-500">
-                    <Check className="h-4 w-4 flex-shrink-0 text-blue-500"/>{i}
+              <ul className="space-y-2.5">
+                {[
+                  "30 GB storage",
+                  "3 events",
+                  "500 guests",
+                  "AI face search",
+                  "WhatsApp + QR sharing",
+                  "PIN protection",
+                  "Full-res download",
+                  "Google Drive BYOC",
+                ].map((i) => (
+                  <li key={i} className="flex items-center gap-2 text-xs text-slate-500">
+                    <Check className="h-3.5 w-3.5 flex-shrink-0 text-blue-500"/>{i}
                   </li>
                 ))}
               </ul>
             </div>
 
-            {/* Pro */}
-            <div className="card-3d rounded-3xl border border-blue-100 bg-white p-8">
-              <p className="mb-2 text-xs font-bold uppercase tracking-widest text-slate-400">Pro Event</p>
-              <div className="mb-1"><span className="text-5xl font-extrabold text-slate-900">₹3,499</span></div>
-              <p className="mb-6 text-sm text-slate-400">per event · 1 year validity</p>
-              <Link href="/signup" className="mb-8 block rounded-2xl border-2 border-blue-200 bg-white py-3 text-center text-sm font-bold text-blue-600 transition hover:bg-blue-50">
+            {/* ── Pro ₹720 ── */}
+            <div className="card-3d rounded-3xl border border-blue-100 bg-white p-6">
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">Pro</p>
+              <div className="mb-0.5">
+                <span className="text-4xl font-extrabold text-slate-900">₹720</span>
+              </div>
+              <p className="mb-5 text-xs text-slate-400">per event</p>
+              <Link href="/signup" className="mb-6 block rounded-xl border-2 border-blue-200 bg-white py-2.5 text-center text-sm font-bold text-blue-600 transition hover:bg-blue-50">
                 Get Started
               </Link>
-              <ul className="space-y-3">
-                {["100 GB on Cloudflare R2","Unlimited events","Unlimited guests","AWS face recognition","Google Drive BYOC","WhatsApp + QR sharing","Download control","Dedicated support","Custom branding"].map((i) => (
-                  <li key={i} className="flex items-center gap-2.5 text-sm text-slate-500">
-                    <Check className="h-4 w-4 flex-shrink-0 text-blue-400"/>{i}
+              <ul className="space-y-2.5">
+                {[
+                  "50 GB storage",
+                  "5 events",
+                  "Unlimited guests",
+                  "AI face search",
+                  "WhatsApp + QR sharing",
+                  "PIN protection",
+                  "Full-res download",
+                  "Google Drive BYOC",
+                  "Priority support",
+                ].map((i) => (
+                  <li key={i} className="flex items-center gap-2 text-xs text-slate-500">
+                    <Check className="h-3.5 w-3.5 flex-shrink-0 text-blue-400"/>{i}
                   </li>
                 ))}
               </ul>
             </div>
+
+            {/* ── Premium ₹1599 ── */}
+            <div className="card-3d rounded-3xl border border-blue-100 bg-white p-6">
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">Premium</p>
+              <div className="mb-0.5">
+                <span className="text-4xl font-extrabold text-slate-900">₹1,599</span>
+              </div>
+              <p className="mb-5 text-xs text-slate-400">per event</p>
+              <Link href="/signup" className="mb-6 block rounded-xl border-2 border-blue-200 bg-white py-2.5 text-center text-sm font-bold text-blue-600 transition hover:bg-blue-50">
+                Get Started
+              </Link>
+              <ul className="space-y-2.5">
+                {[
+                  "100 GB storage",
+                  "Unlimited events",
+                  "Unlimited guests",
+                  "AI face search",
+                  "WhatsApp + QR sharing",
+                  "PIN protection",
+                  "Full-res download",
+                  "Google Drive BYOC",
+                  "Dedicated support",
+                  "Custom branding",
+                ].map((i) => (
+                  <li key={i} className="flex items-center gap-2 text-xs text-slate-500">
+                    <Check className="h-3.5 w-3.5 flex-shrink-0 text-blue-400"/>{i}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
           </div>
+
+          <p className="mt-8 text-center text-sm text-slate-400">
+            All plans include AI face search · No hidden fees · Cancel anytime
+          </p>
         </div>
       </section>
 
