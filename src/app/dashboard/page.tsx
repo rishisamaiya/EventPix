@@ -11,8 +11,10 @@ import {
   Share2,
   ChevronRight,
   Zap,
+  AlertTriangle,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { PLANS, PlanId } from "@/lib/plans";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -26,13 +28,21 @@ export default async function DashboardPage() {
 
   const { data: subscription } = await supabase
     .from("subscriptions")
-    .select("plan, status")
+    .select("plan, status, max_events, expires_at")
     .eq("user_id", user!.id)
     .eq("status", "active")
     .maybeSingle();
 
-  const planName = subscription?.plan ?? "free";
-  const eventCount = events?.length ?? 0;
+  const planId: PlanId =
+    subscription?.expires_at && new Date(subscription.expires_at) > new Date()
+      ? (subscription.plan as PlanId)
+      : "free";
+  const plan = PLANS[planId];
+  const planName = planId;
+  const maxEvents = subscription?.max_events ?? plan.maxEvents;
+  const eventCount = events?.filter((e) => e.status !== "archived").length ?? 0;
+  const atLimit = maxEvents !== -1 && eventCount >= maxEvents;
+  const nearLimit = maxEvents !== -1 && eventCount >= maxEvents * 0.8 && !atLimit;
 
   const totalPhotos = events?.reduce((sum, e) => sum + (e.photo_count ?? 0), 0) ?? 0;
 
@@ -41,6 +51,36 @@ export default async function DashboardPage() {
 
       {/* ── Main Column ── */}
       <div className="flex-1 min-w-0">
+
+        {/* Upgrade banner */}
+        {atLimit && (
+          <div className="mb-5 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <AlertTriangle className="h-5 w-5 flex-shrink-0 text-amber-500" />
+            <p className="flex-1 text-sm text-amber-800">
+              <strong>Event limit reached.</strong> You&apos;ve used all {maxEvents} event{maxEvents === 1 ? "" : "s"} on the {plan.name} plan.
+            </p>
+            <Link
+              href="/#pricing"
+              className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-amber-600"
+            >
+              Upgrade →
+            </Link>
+          </div>
+        )}
+        {nearLimit && (
+          <div className="mb-5 flex items-center gap-3 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3">
+            <Zap className="h-5 w-5 flex-shrink-0 text-yellow-500" />
+            <p className="flex-1 text-sm text-yellow-800">
+              You&apos;re using <strong>{eventCount} of {maxEvents}</strong> events. Consider upgrading before you hit the limit.
+            </p>
+            <Link
+              href="/#pricing"
+              className="rounded-lg bg-yellow-500 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-yellow-600"
+            >
+              View Plans
+            </Link>
+          </div>
+        )}
 
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
@@ -63,9 +103,9 @@ export default async function DashboardPage() {
         {eventCount > 0 && (
           <div className="mb-6 grid grid-cols-3 gap-3">
             {[
-              { label: "Events", value: eventCount, icon: Calendar, color: "text-blue-600 bg-blue-50" },
+              { label: "Events", value: `${eventCount} / ${maxEvents === -1 ? "∞" : maxEvents}`, icon: Calendar, color: "text-blue-600 bg-blue-50" },
               { label: "Photos", value: totalPhotos, icon: ImageIcon, color: "text-violet-600 bg-violet-50" },
-              { label: "Plan", value: planName.charAt(0).toUpperCase() + planName.slice(1), icon: Zap, color: "text-amber-600 bg-amber-50" },
+              { label: "Plan", value: plan.name, icon: Zap, color: "text-amber-600 bg-amber-50" },
             ].map(({ label, value, icon: Icon, color }) => (
               <div key={label} className="rounded-xl border border-slate-100 bg-white p-4 flex items-center gap-3">
                 <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${color}`}>
@@ -197,7 +237,9 @@ export default async function DashboardPage() {
           <div className="space-y-1.5 text-sm text-slate-600 mb-4">
             <div className="flex justify-between">
               <span className="text-slate-400">Events</span>
-              <span className="font-medium">{eventCount} created</span>
+              <span className={`font-medium ${atLimit ? "text-red-500" : ""}`}>
+                {eventCount} / {maxEvents === -1 ? "∞" : maxEvents}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-400">Photos</span>
