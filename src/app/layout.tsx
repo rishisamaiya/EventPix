@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Chatbot } from "@/components/chatbot";
 
 export const metadata: Metadata = {
   title: "EventPix — AI Photo Sharing for Events",
@@ -16,6 +17,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="min-h-screen bg-background text-foreground antialiased">
         {children}
+        <Chatbot />
       </body>
     </html>
   );

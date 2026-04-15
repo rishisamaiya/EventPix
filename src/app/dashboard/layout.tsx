@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Camera, LayoutDashboard, ShieldCheck } from "lucide-react";
+import { Camera, LayoutDashboard, ShieldCheck, CreditCard, HelpCircle, MessageCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { LogoutButton } from "./logout-button";
 
@@ -38,14 +38,30 @@ export default async function DashboardLayout({
               <LayoutDashboard className="h-4 w-4" />
               Dashboard
             </Link>
+            <Link
+              href="/dashboard/billing"
+              className="flex items-center gap-1.5 text-sm text-muted-foreground transition hover:text-foreground"
+            >
+              <CreditCard className="h-4 w-4" />
+              Billing
+            </Link>
             {user.email === ADMIN_EMAIL && (
-              <Link
-                href="/dashboard/admin"
-                className="flex items-center gap-1.5 text-sm font-medium text-violet-600 transition hover:text-violet-800"
-              >
-                <ShieldCheck className="h-4 w-4" />
-                Admin
-              </Link>
+              <>
+                <Link
+                  href="/dashboard/admin"
+                  className="flex items-center gap-1.5 text-sm font-medium text-violet-600 transition hover:text-violet-800"
+                >
+                  <ShieldCheck className="h-4 w-4" />
+                  Admin
+                </Link>
+                <Link
+                  href="/dashboard/admin/tickets"
+                  className="flex items-center gap-1.5 text-sm font-medium text-amber-600 transition hover:text-amber-800"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  Tickets
+                </Link>
+              </>
             )}
             <span className="text-sm text-muted-foreground">
               {user.email}
