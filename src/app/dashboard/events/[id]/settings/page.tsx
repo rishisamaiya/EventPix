@@ -3,7 +3,6 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { EventSettingsForm } from "./event-settings-form";
-import { EventTabs } from "@/components/event-tabs";
 
 export default async function EventSettingsPage({
   params,
@@ -26,23 +25,23 @@ export default async function EventSettingsPage({
 
   return (
     <div>
+      {/* Back to event (main page with tabs) */}
       <Link
-        href="/dashboard"
+        href={`/dashboard/events/${id}`}
         className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />
-        Back to Events
+        ← Back to {event.name}
       </Link>
 
-      {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">{event.name}</h1>
-        <p className="text-sm text-muted-foreground">{event.event_type ? `${event.event_type} · ` : ""}Settings</p>
+        <h1 className="text-2xl font-bold">Event Settings</h1>
+        <p className="text-sm text-muted-foreground capitalize">
+          {event.event_type && event.event_type !== "other" ? `${event.event_type} · ` : ""}
+          {event.name}
+        </p>
       </div>
 
-      <EventTabs eventId={id} />
-
-      {/* Settings Form */}
       <div className="rounded-2xl border border-border bg-card p-8">
         <EventSettingsForm event={event} />
       </div>
