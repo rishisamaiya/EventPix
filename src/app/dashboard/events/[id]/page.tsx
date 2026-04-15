@@ -1,12 +1,13 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Share2, ImageIcon, Users, Settings, BarChart2, CheckSquare } from "lucide-react";
+import { ArrowLeft, Share2, ImageIcon, Users, Settings, Calendar } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { ShareButton } from "./share-button";
 import { EventPhotos } from "./event-photos";
 import { EventActions } from "./event-actions";
 import { PrivacyModeToggle } from "./privacy-mode-toggle";
 import { EventChecklist } from "@/components/event-checklist";
+import { EventTabs } from "@/components/event-tabs";
 
 export default async function EventDetailPage({
   params,
@@ -46,13 +47,6 @@ export default async function EventDetailPage({
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const shareUrl = `${appUrl}/e/${event.share_slug}`;
 
-  const tabs = [
-    { label: "Overview", href: `/dashboard/events/${id}`, icon: <ImageIcon className="h-4 w-4" /> },
-    { label: "Settings", href: `/dashboard/events/${id}/settings`, icon: <Settings className="h-4 w-4" /> },
-    { label: "Guests", href: `/dashboard/events/${id}/guests`, icon: <Users className="h-4 w-4" />, count: guestCount ?? 0 },
-    { label: "Analytics", href: `/dashboard/events/${id}/analytics`, icon: <BarChart2 className="h-4 w-4" /> },
-  ];
-
   return (
     <div>
       <Link
@@ -64,7 +58,30 @@ export default async function EventDetailPage({
       </Link>
 
       {/* Event Header */}
-      <div className="mb-6 rounded-2xl border border-border bg-card p-6">
+      <div className="mb-6 overflow-hidden rounded-2xl border border-border bg-card">
+        {/* Cover image strip */}
+        {event.cover_url ? (
+          <div className="relative h-40 w-full overflow-hidden">
+            <img src={event.cover_url} alt={event.name} className="h-full w-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+            <Link
+              href={`/dashboard/events/${id}/settings`}
+              className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-lg bg-black/40 px-3 py-1.5 text-xs font-medium text-white backdrop-blur transition hover:bg-black/60"
+            >
+              <Settings className="h-3.5 w-3.5" /> Change cover
+            </Link>
+          </div>
+        ) : (
+          <Link
+            href={`/dashboard/events/${id}/settings`}
+            className="flex h-20 w-full items-center justify-center gap-2 border-b border-border bg-muted/20 text-sm font-medium text-muted-foreground transition hover:bg-muted/40 hover:text-foreground"
+          >
+            <ImageIcon className="h-4 w-4" />
+            Add cover photo → go to Settings tab
+          </Link>
+        )}
+
+        <div className="p-6">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="mb-1 flex items-center gap-3">
@@ -136,7 +153,7 @@ export default async function EventDetailPage({
             { icon: <ImageIcon className="h-4 w-4" />, label: "Photos", value: event.photo_count },
             { icon: <Users className="h-4 w-4" />, label: "Guests", value: guestCount ?? 0 },
             { icon: <Share2 className="h-4 w-4" />, label: "Storage", value: event.storage_type?.replace("_", " ") },
-            { icon: <Settings className="h-4 w-4" />, label: "PIN", value: event.pin_code ? "Protected" : "Open" },
+            { icon: <Calendar className="h-4 w-4" />, label: "PIN", value: event.pin_code ? "Protected" : "Open" },
           ].map((stat) => (
             <div key={stat.label} className="rounded-xl bg-muted/50 p-4">
               <div className="flex items-center gap-2 text-muted-foreground">
@@ -147,26 +164,11 @@ export default async function EventDetailPage({
             </div>
           ))}
         </div>
+        </div>{/* end p-6 */}
       </div>
 
       {/* Tabs */}
-      <div className="mb-6 flex gap-1 rounded-xl border border-border bg-muted/30 p-1">
-        {tabs.map((tab) => (
-          <Link
-            key={tab.label}
-            href={tab.href}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-background px-3 py-2 text-sm font-medium shadow-sm transition hover:bg-background"
-          >
-            {tab.icon}
-            {tab.label}
-            {tab.count !== undefined && tab.count > 0 && (
-              <span className="ml-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-xs text-primary">
-                {tab.count}
-              </span>
-            )}
-          </Link>
-        ))}
-      </div>
+      <EventTabs eventId={id} guestCount={guestCount ?? 0} />
 
       {/* Share Section */}
       <div className="mb-8 rounded-2xl border border-border bg-card p-6">

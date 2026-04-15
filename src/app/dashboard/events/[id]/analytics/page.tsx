@@ -1,7 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Settings, ImageIcon, Users, BarChart2, TrendingUp, ScanFace, HardDrive, Zap } from "lucide-react";
+import { ArrowLeft, TrendingUp, ScanFace, HardDrive, Zap, ImageIcon, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { EventTabs } from "@/components/event-tabs";
 
 export default async function EventAnalyticsPage({
   params,
@@ -53,13 +54,6 @@ export default async function EventAnalyticsPage({
   const chartData = Object.entries(visitsByDay).slice(-7); // Last 7 days
   const maxVisits = Math.max(...chartData.map(([, v]) => v), 1);
 
-  const tabs = [
-    { label: "Overview", href: `/dashboard/events/${id}`, icon: <ImageIcon className="h-4 w-4" /> },
-    { label: "Settings", href: `/dashboard/events/${id}/settings`, icon: <Settings className="h-4 w-4" /> },
-    { label: "Guests", href: `/dashboard/events/${id}/guests`, icon: <Users className="h-4 w-4" /> },
-    { label: "Analytics", href: `/dashboard/events/${id}/analytics`, icon: <BarChart2 className="h-4 w-4" />, active: true },
-  ];
-
   return (
     <div>
       <Link
@@ -75,23 +69,7 @@ export default async function EventAnalyticsPage({
         <p className="text-sm text-muted-foreground">Analytics</p>
       </div>
 
-      {/* Tabs */}
-      <div className="mb-6 flex gap-1 rounded-xl border border-border bg-muted/30 p-1">
-        {tabs.map((tab) => (
-          <Link
-            key={tab.label}
-            href={tab.href}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition ${
-              tab.active
-                ? "bg-background shadow-sm text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {tab.icon}
-            {tab.label}
-          </Link>
-        ))}
-      </div>
+      <EventTabs eventId={id} />
 
       {/* Stats Grid */}
       <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">

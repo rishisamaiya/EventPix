@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Save, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { CoverPhotoUploader } from "@/components/cover-photo-uploader";
 
 type Props = {
   event: {
@@ -17,6 +18,7 @@ type Props = {
     allow_download: boolean;
     download_quality: string | null;
     privacy_mode: boolean | null;
+    cover_url: string | null;
   };
 };
 
@@ -93,6 +95,13 @@ export function EventSettingsForm({ event }: Props) {
           General
         </h3>
         <div className="grid gap-5 sm:grid-cols-2">
+          {/* Cover photo - full width */}
+          <div className="sm:col-span-2">
+            <CoverPhotoUploader
+              eventId={event.id}
+              currentCoverUrl={event.cover_url}
+            />
+          </div>
           <div className="sm:col-span-2">
             <label className="mb-1.5 block text-sm font-medium">Event Name *</label>
             <input

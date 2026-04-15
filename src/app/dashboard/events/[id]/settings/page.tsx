@@ -1,8 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Settings, ImageIcon, Users, BarChart2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { EventSettingsForm } from "./event-settings-form";
+import { EventTabs } from "@/components/event-tabs";
 
 export default async function EventSettingsPage({
   params,
@@ -23,13 +24,6 @@ export default async function EventSettingsPage({
 
   if (!event) notFound();
 
-  const tabs = [
-    { label: "Overview", href: `/dashboard/events/${id}`, icon: <ImageIcon className="h-4 w-4" /> },
-    { label: "Settings", href: `/dashboard/events/${id}/settings`, icon: <Settings className="h-4 w-4" />, active: true },
-    { label: "Guests", href: `/dashboard/events/${id}/guests`, icon: <Users className="h-4 w-4" /> },
-    { label: "Analytics", href: `/dashboard/events/${id}/analytics`, icon: <BarChart2 className="h-4 w-4" /> },
-  ];
-
   return (
     <div>
       <Link
@@ -46,23 +40,7 @@ export default async function EventSettingsPage({
         <p className="text-sm text-muted-foreground">{event.event_type ? `${event.event_type} · ` : ""}Settings</p>
       </div>
 
-      {/* Tabs */}
-      <div className="mb-6 flex gap-1 rounded-xl border border-border bg-muted/30 p-1">
-        {tabs.map((tab) => (
-          <Link
-            key={tab.label}
-            href={tab.href}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition ${
-              tab.active
-                ? "bg-background shadow-sm text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {tab.icon}
-            {tab.label}
-          </Link>
-        ))}
-      </div>
+      <EventTabs eventId={id} />
 
       {/* Settings Form */}
       <div className="rounded-2xl border border-border bg-card p-8">
