@@ -4,6 +4,7 @@ import {
   Camera, Share2, Lock, ScanFace, ArrowRight, Check, X,
   Download, Zap, Shield, QrCode, Smartphone, Image as ImageIcon,
 } from "lucide-react";
+import { PricingSection } from "@/components/pricing-section";
 import { AuthErrorHandler } from "@/components/auth-error-handler";
 
 /* ─── real wedding photos from Unsplash ─────────────────────────────────── */
@@ -424,155 +425,7 @@ export default function HomePage() {
             <p className="text-lg text-slate-400">Start free. Upgrade when your event needs more.</p>
           </div>
 
-          {/* 5-tier grid: 1 col mobile → 2 col sm → 5 col xl */}
-          <div className="grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-5">
-
-            {/* ── Free ── */}
-            <div className="card-3d rounded-3xl border border-blue-100 bg-white p-6">
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">Free</p>
-              <div className="mb-0.5"><span className="text-4xl font-extrabold text-slate-900">₹0</span></div>
-              <p className="mb-5 text-xs text-slate-400">No credit card · ever</p>
-              <Link href="/signup" className="mb-6 block rounded-xl border-2 border-blue-200 bg-white py-2.5 text-center text-sm font-bold text-blue-600 transition hover:bg-blue-50">
-                Get Started
-              </Link>
-              <ul className="space-y-2.5">
-                {[
-                  "5 GB storage",
-                  "1 event",
-                  "100 guests",
-                  "AI face search",
-                  "WhatsApp sharing",
-                  "PIN protection",
-                ].map((i) => (
-                  <li key={i} className="flex items-center gap-2 text-xs text-slate-500">
-                    <Check className="h-3.5 w-3.5 flex-shrink-0 text-blue-400"/>{i}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* ── Basic ₹299 ── */}
-            <div className="card-3d rounded-3xl border border-blue-100 bg-white p-6">
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">Basic</p>
-              <div className="mb-0.5">
-                <span className="text-4xl font-extrabold text-slate-900">₹299</span>
-              </div>
-              <p className="mb-5 text-xs text-slate-400">per event</p>
-              <Link href="/signup" className="mb-6 block rounded-xl border-2 border-blue-200 bg-white py-2.5 text-center text-sm font-bold text-blue-600 transition hover:bg-blue-50">
-                Get Started
-              </Link>
-              <ul className="space-y-2.5">
-                {[
-                  "15 GB storage",
-                  "1 event",
-                  "200 guests",
-                  "AI face search",
-                  "WhatsApp + QR sharing",
-                  "PIN protection",
-                  "Full-res download",
-                ].map((i) => (
-                  <li key={i} className="flex items-center gap-2 text-xs text-slate-500">
-                    <Check className="h-3.5 w-3.5 flex-shrink-0 text-blue-400"/>{i}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* ── Standard ₹449 — MOST POPULAR ── */}
-            <div className="card-3d relative rounded-3xl border-2 border-blue-500 bg-white p-6 shadow-2xl shadow-blue-100/80 xl:-mt-4">
-              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-r from-blue-500 to-sky-400 px-4 py-1 text-[10px] font-bold text-white shadow-lg">
-                MOST POPULAR
-              </div>
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-blue-500">Standard</p>
-              <div className="mb-0.5">
-                <span className="text-4xl font-extrabold text-slate-900">₹449</span>
-              </div>
-              <p className="mb-5 text-xs text-slate-400">per event</p>
-              <Link href="/signup" className="mb-6 block rounded-xl bg-gradient-to-r from-blue-500 to-sky-400 py-2.5 text-center text-sm font-bold text-white shadow-lg shadow-blue-200 transition hover:from-blue-600 hover:to-sky-500">
-                Get Started
-              </Link>
-              <ul className="space-y-2.5">
-                {[
-                  "30 GB storage",
-                  "3 events",
-                  "500 guests",
-                  "AI face search",
-                  "WhatsApp + QR sharing",
-                  "PIN protection",
-                  "Full-res download",
-                  "Google Drive BYOC",
-                ].map((i) => (
-                  <li key={i} className="flex items-center gap-2 text-xs text-slate-500">
-                    <Check className="h-3.5 w-3.5 flex-shrink-0 text-blue-500"/>{i}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* ── Pro ₹720 ── */}
-            <div className="card-3d rounded-3xl border border-blue-100 bg-white p-6">
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">Pro</p>
-              <div className="mb-0.5">
-                <span className="text-4xl font-extrabold text-slate-900">₹720</span>
-              </div>
-              <p className="mb-5 text-xs text-slate-400">per event</p>
-              <Link href="/signup" className="mb-6 block rounded-xl border-2 border-blue-200 bg-white py-2.5 text-center text-sm font-bold text-blue-600 transition hover:bg-blue-50">
-                Get Started
-              </Link>
-              <ul className="space-y-2.5">
-                {[
-                  "50 GB storage",
-                  "5 events",
-                  "Unlimited guests",
-                  "AI face search",
-                  "WhatsApp + QR sharing",
-                  "PIN protection",
-                  "Full-res download",
-                  "Google Drive BYOC",
-                  "Priority support",
-                ].map((i) => (
-                  <li key={i} className="flex items-center gap-2 text-xs text-slate-500">
-                    <Check className="h-3.5 w-3.5 flex-shrink-0 text-blue-400"/>{i}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* ── Premium ₹1599 ── */}
-            <div className="card-3d rounded-3xl border border-blue-100 bg-white p-6">
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">Premium</p>
-              <div className="mb-0.5">
-                <span className="text-4xl font-extrabold text-slate-900">₹1,599</span>
-              </div>
-              <p className="mb-5 text-xs text-slate-400">per event</p>
-              <Link href="/signup" className="mb-6 block rounded-xl border-2 border-blue-200 bg-white py-2.5 text-center text-sm font-bold text-blue-600 transition hover:bg-blue-50">
-                Get Started
-              </Link>
-              <ul className="space-y-2.5">
-                {[
-                  "100 GB storage",
-                  "Unlimited events",
-                  "Unlimited guests",
-                  "AI face search",
-                  "WhatsApp + QR sharing",
-                  "PIN protection",
-                  "Full-res download",
-                  "Google Drive BYOC",
-                  "Dedicated support",
-                  "Custom branding",
-                ].map((i) => (
-                  <li key={i} className="flex items-center gap-2 text-xs text-slate-500">
-                    <Check className="h-3.5 w-3.5 flex-shrink-0 text-blue-400"/>{i}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-          </div>
-
-          <p className="mt-8 text-center text-sm text-slate-400">
-            All plans include AI face search · No hidden fees · Cancel anytime
-          </p>
+          <PricingSection />
         </div>
       </section>
 
@@ -600,19 +453,43 @@ export default function HomePage() {
       {/* ── Footer ── */}
       <footer className="border-t border-blue-100 bg-[#F5F8FF] py-10">
         <div className="mx-auto max-w-6xl px-4">
-          <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-sky-400">
-                <Camera className="h-4 w-4 text-white" />
+          <div className="grid gap-8 md:grid-cols-4">
+            <div>
+              <div className="mb-3 flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-sky-400">
+                  <Camera className="h-4 w-4 text-white" />
+                </div>
+                <span className="font-extrabold text-slate-800">EventPix</span>
               </div>
-              <span className="font-extrabold text-slate-800">EventPix</span>
+              <p className="text-sm text-slate-400">AI-powered photo sharing for events. Built for moments that matter.</p>
             </div>
-            <div className="flex items-center gap-6 text-sm text-slate-400">
-              {[["#features","Features"],["#pricing","Pricing"],["/login","Login"],["/signup","Sign Up"]].map(([h,l]) => (
-                <Link key={h} href={h} className="transition hover:text-slate-700">{l}</Link>
-              ))}
+            <div>
+              <h4 className="mb-3 text-sm font-semibold text-slate-700">Product</h4>
+              <ul className="space-y-2 text-sm text-slate-400">
+                {[["#features","Features"],["#pricing","Pricing"],["#how-it-works","How It Works"],["/docs","Documentation"]].map(([h,l]) => (
+                  <li key={h}><Link href={h} className="transition hover:text-slate-700">{l}</Link></li>
+                ))}
+              </ul>
             </div>
-            <p className="text-sm text-slate-300">&copy; {new Date().getFullYear()} EventPix · Built for moments that matter</p>
+            <div>
+              <h4 className="mb-3 text-sm font-semibold text-slate-700">Support</h4>
+              <ul className="space-y-2 text-sm text-slate-400">
+                {[["/help","Help Center"],["/contact","Contact Us"],["/docs","Getting Started"]].map(([h,l]) => (
+                  <li key={h+l}><Link href={h} className="transition hover:text-slate-700">{l}</Link></li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h4 className="mb-3 text-sm font-semibold text-slate-700">Legal</h4>
+              <ul className="space-y-2 text-sm text-slate-400">
+                {[["/privacy","Privacy Policy"],["/terms","Terms of Service"],["/refund","Refund Policy"]].map(([h,l]) => (
+                  <li key={h}><Link href={h} className="transition hover:text-slate-700">{l}</Link></li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          <div className="mt-8 border-t border-blue-100 pt-6 text-center text-sm text-slate-300">
+            &copy; {new Date().getFullYear()} EventPix · All rights reserved
           </div>
         </div>
       </footer>

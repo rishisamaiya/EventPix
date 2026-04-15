@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Camera, RotateCcw, Loader2, ScanFace, X } from "lucide-react";
+import { Camera, RotateCcw, Loader2, ScanFace, X, Shield, ChevronRight } from "lucide-react";
 
 interface SelfieCaptureProps {
   onCapture: (imageData: string, imageElement: HTMLImageElement) => void;
@@ -22,6 +22,8 @@ export function SelfieCapture({
   const [captured, setCaptured] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
+  // Consent gate — must be accepted before camera opens (DPDPA biometric consent)
+  const [consentGiven, setConsentGiven] = useState(false);
 
   const startCamera = useCallback(async () => {
     try {
@@ -47,12 +49,13 @@ export function SelfieCapture({
   }, [facingMode, stream]);
 
   useEffect(() => {
+    if (!consentGiven) return; // don't open camera until consent given
     startCamera();
     return () => {
       stream?.getTracks().forEach((t) => t.stop());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [facingMode]);
+  }, [facingMode, consentGiven]);
 
   function takeSelfie() {
     if (!videoRef.current || !canvasRef.current) return;
@@ -91,6 +94,73 @@ export function SelfieCapture({
     const img = new Image();
     img.onload = () => onCapture(captured, img);
     img.src = captured;
+  }
+
+  // ── Consent screen (DPDPA — biometric data requires explicit consent) ──
+  if (!consentGiven) {
+    return (
+      <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center">
+        <div className="w-full max-w-sm rounded-t-3xl bg-white p-6 shadow-2xl sm:rounded-3xl">
+          {/* Header */}
+          <div className="mb-5 flex items-start justify-between">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100">
+              <Shield className="h-6 w-6 text-blue-600" />
+            </div>
+            <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <h2 className="mb-2 text-lg font-bold text-slate-900">
+            We need your consent
+          </h2>
+          <p className="mb-5 text-sm leading-relaxed text-slate-500">
+            To find your photos using AI, we&apos;ll capture a selfie and process
+            it with <strong className="text-slate-700">AWS Rekognition</strong> to
+            match your face against event photos.
+          </p>
+
+          <ul className="mb-6 space-y-3">
+            {[
+              "Your selfie is used only to find matching photos",
+              "The image is processed in real-time — not stored permanently",
+              "Face embeddings are linked to this event only",
+              "You can request deletion of your data anytime",
+            ].map((point) => (
+              <li key={point} className="flex items-start gap-2.5 text-sm text-slate-600">
+                <div className="mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-green-100">
+                  <svg className="h-2.5 w-2.5 text-green-600" viewBox="0 0 10 10" fill="currentColor">
+                    <path fillRule="evenodd" d="M8.485 1.515a.75.75 0 0 1 0 1.06l-5 5a.75.75 0 0 1-1.06 0l-2-2a.75.75 0 0 1 1.06-1.06L3 6.04l4.485-4.485a.75.75 0 0 1 1 0Z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                {point}
+              </li>
+            ))}
+          </ul>
+
+          <p className="mb-5 text-xs text-slate-400">
+            By continuing, you consent to biometric data processing as described in our{" "}
+            <a href="/privacy" target="_blank" className="text-blue-500 underline">
+              Privacy Policy
+            </a>{" "}
+            under India&apos;s DPDPA 2023.
+          </p>
+
+          <button
+            onClick={() => setConsentGiven(true)}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-sky-400 py-3.5 font-bold text-white shadow-lg transition hover:from-blue-600 hover:to-sky-500"
+          >
+            I Agree — Take Selfie <ChevronRight className="h-4 w-4" />
+          </button>
+          <button
+            onClick={onClose}
+            className="mt-3 w-full rounded-xl py-2.5 text-sm text-slate-400 hover:text-slate-600"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
