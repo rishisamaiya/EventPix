@@ -178,7 +178,7 @@ export default function HomePage() {
             <span className="text-xl font-bold tracking-tight text-slate-900">EventPix</span>
           </Link>
           <div className="hidden items-center gap-8 md:flex">
-            {[["#features","Features"],["#how-it-works","How It Works"],["#pricing","Pricing"]].map(([h,l]) => (
+            {[["#features","Features"],["#how-it-works","How It Works"],["#pricing","Pricing"],["/help","Help"]].map(([h,l]) => (
               <Link key={h} href={h} className="text-sm font-medium text-slate-500 transition hover:text-slate-900">{l}</Link>
             ))}
           </div>

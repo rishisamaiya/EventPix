@@ -14,6 +14,8 @@ import {
   Check,
   RefreshCw,
   Clock,
+  EyeOff,
+  Sparkles,
 } from "lucide-react";
 import { SelfieCapture } from "@/components/selfie-capture";
 
@@ -34,6 +36,7 @@ type Event = {
   pin_code: string | null;
   photo_count: number;
   allow_download: boolean;
+  privacy_mode: boolean;
 };
 
 // What we persist in localStorage
@@ -245,6 +248,8 @@ export function GuestGallery({
   }
 
   // --- GALLERY ---
+  // In privacy mode, "official" tab is hidden — guests only see their matched photos
+  const isPrivate = event.privacy_mode;
   const displayPhotos = activeTab === "official" ? photos : myPhotos;
 
   return (
@@ -314,19 +319,21 @@ export function GuestGallery({
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs — hide "Official" tab in privacy mode */}
       <div className="sticky top-0 z-40 flex items-center justify-between border-b border-gray-100 bg-white px-4">
         <div className="flex">
-          <button
-            onClick={() => setActiveTab("official")}
-            className={`border-b-2 px-4 py-3 text-sm font-semibold transition ${
-              activeTab === "official"
-                ? "border-black text-black"
-                : "border-transparent text-gray-400 hover:text-gray-600"
-            }`}
-          >
-            OFFICIAL
-          </button>
+          {!isPrivate && (
+            <button
+              onClick={() => setActiveTab("official")}
+              className={`border-b-2 px-4 py-3 text-sm font-semibold transition ${
+                activeTab === "official"
+                  ? "border-black text-black"
+                  : "border-transparent text-gray-400 hover:text-gray-600"
+              }`}
+            >
+              ALL PHOTOS
+            </button>
+          )}
           <button
             onClick={() => {
               setActiveTab("my");
@@ -356,9 +363,11 @@ export function GuestGallery({
               <Camera className="h-5 w-5" />
             </button>
           )}
-          <button className="p-2 text-gray-400 hover:text-gray-600">
-            <Search className="h-5 w-5" />
-          </button>
+          {!isPrivate && (
+            <button className="p-2 text-gray-400 hover:text-gray-600">
+              <Search className="h-5 w-5" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -395,7 +404,55 @@ export function GuestGallery({
 
       {/* Gallery Grid */}
       <div className="px-0.5 py-0.5">
-        {activeTab === "my" && !hasSearched ? (
+
+        {/* Privacy mode: blurred grid with selfie prompt overlay */}
+        {isPrivate && !hasSearched && (
+          <div className="relative">
+            {/* Blurred thumbnail grid (shows photo count as visual hint) */}
+            {photos.length > 0 && (
+              <div className="grid grid-cols-3 gap-0.5 select-none" aria-hidden>
+                {photos.slice(0, 9).map((photo) => (
+                  <div key={photo.id} className="relative aspect-square overflow-hidden bg-gray-100">
+                    <img
+                      src={photo.thumbnail_url || photo.source_url}
+                      alt=""
+                      className="h-full w-full object-cover blur-xl scale-110 brightness-75"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <EyeOff className="h-5 w-5 text-white/50" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* Centered CTA overlay */}
+            <div className={`${photos.length > 0 ? "absolute inset-0" : "py-20"} flex flex-col items-center justify-center px-6`}>
+              <div className="rounded-2xl bg-white/95 p-6 text-center shadow-2xl backdrop-blur-sm max-w-xs w-full">
+                <div className="mb-3 flex justify-center">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                    <Sparkles className="h-8 w-8 text-primary" />
+                  </div>
+                </div>
+                <h3 className="mb-1 text-base font-bold text-gray-900">
+                  {event.photo_count} photos are waiting for you
+                </h3>
+                <p className="mb-4 text-xs text-gray-500">
+                  This is a private gallery. Take a selfie to reveal the photos you appear in.
+                </p>
+                <button
+                  onClick={() => setShowSelfie(true)}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 font-semibold text-white transition hover:bg-primary/90"
+                >
+                  <ScanFace className="h-5 w-5" />
+                  Find My Photos
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {(!isPrivate || hasSearched) && activeTab === "my" && !hasSearched ? (
           <div className="flex flex-col items-center py-20">
             <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-indigo-50">
               <ScanFace className="h-10 w-10 text-primary" />
@@ -413,7 +470,7 @@ export function GuestGallery({
               Take a Selfie
             </button>
           </div>
-        ) : activeTab === "my" && hasSearched && myPhotos.length === 0 ? (
+        ) : (!isPrivate || hasSearched) && activeTab === "my" && hasSearched && myPhotos.length === 0 ? (
           <div className="flex flex-col items-center py-20">
             <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-gray-100">
               <ScanFace className="h-10 w-10 text-gray-400" />
@@ -431,7 +488,7 @@ export function GuestGallery({
               Try Again
             </button>
           </div>
-        ) : displayPhotos.length > 0 ? (
+        ) : (!isPrivate || hasSearched) && displayPhotos.length > 0 ? (
           <div className="grid grid-cols-3 gap-0.5">
             {displayPhotos.map((photo) => (
               <button

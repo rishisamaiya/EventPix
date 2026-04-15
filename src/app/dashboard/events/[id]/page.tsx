@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ShareButton } from "./share-button";
 import { EventPhotos } from "./event-photos";
 import { EventActions } from "./event-actions";
+import { PrivacyModeToggle } from "./privacy-mode-toggle";
 
 export default async function EventDetailPage({
   params,
@@ -161,6 +162,15 @@ export default async function EventDetailPage({
           </div>
           <ShareButton url={shareUrl} />
         </div>
+      </div>
+
+      {/* Settings Section */}
+      <div className="mb-8 rounded-2xl border border-border bg-card p-6">
+        <h2 className="mb-4 text-lg font-semibold flex items-center gap-2">
+          <Settings className="h-5 w-5 text-muted-foreground" />
+          Gallery Settings
+        </h2>
+        <PrivacyModeToggle eventId={event.id} initialPrivacyMode={event.privacy_mode ?? false} />
       </div>
 
       {/* Photos Section */}
