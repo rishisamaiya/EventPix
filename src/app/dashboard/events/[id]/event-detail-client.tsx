@@ -20,15 +20,15 @@ type Props = {
 /* ── Guests table ── */
 function GuestsTab({ sessions }: { sessions: any[] }) {
   const totalVisits = sessions.length;
-  const withSelfie = sessions.filter((s) => s.selfie_embedding !== null).length;
+  const uniqueGuests = new Set(sessions.filter(s => s.guest_name).map(s => s.guest_name.toLowerCase())).size;
   const withMatches = sessions.filter((s) => (s.matched_photo_count ?? 0) > 0).length;
 
   return (
     <div>
       <div className="mb-6 grid grid-cols-3 gap-4">
         {[
-          { icon: <Users className="h-5 w-5 text-blue-500" />, label: "Total Visits", value: totalVisits, bg: "bg-blue-50" },
-          { icon: <ScanFace className="h-5 w-5 text-purple-500" />, label: "Selfie Searches", value: withSelfie, bg: "bg-purple-50" },
+          { icon: <Users className="h-5 w-5 text-blue-500" />, label: "Unique Guests", value: uniqueGuests || totalVisits, bg: "bg-blue-50" },
+          { icon: <ScanFace className="h-5 w-5 text-purple-500" />, label: "Total Searches", value: totalVisits, bg: "bg-purple-50" },
           { icon: <ImageIcon className="h-5 w-5 text-green-500" />, label: "Found Photos", value: withMatches, bg: "bg-green-50" },
         ].map((s) => (
           <div key={s.label} className="rounded-2xl border border-border bg-card p-5">
@@ -58,9 +58,7 @@ function GuestsTab({ sessions }: { sessions: any[] }) {
                 <th className="px-5 py-3 text-left font-semibold text-muted-foreground">
                   <div className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> Visit</div>
                 </th>
-                <th className="px-5 py-3 text-left font-semibold text-muted-foreground">
-                  <div className="flex items-center gap-1"><ScanFace className="h-3.5 w-3.5" /> Selfie</div>
-                </th>
+                <th className="px-5 py-3 text-left font-semibold text-muted-foreground">Contact</th>
                 <th className="px-5 py-3 text-left font-semibold text-muted-foreground">Photos</th>
               </tr>
             </thead>
@@ -83,12 +81,10 @@ function GuestsTab({ sessions }: { sessions: any[] }) {
                     })}
                   </td>
                   <td className="px-5 py-3">
-                    {session.selfie_embedding ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">
-                        <ScanFace className="h-3 w-3" /> Yes
-                      </span>
+                    {session.phone ? (
+                      <span className="font-medium text-slate-700">{session.phone}</span>
                     ) : (
-                      <span className="text-xs text-muted-foreground">No selfie</span>
+                      <span className="text-xs text-muted-foreground">—</span>
                     )}
                   </td>
                   <td className="px-5 py-3">
@@ -111,9 +107,8 @@ function GuestsTab({ sessions }: { sessions: any[] }) {
 /* ── Analytics tab ── */
 function AnalyticsTab({ event, sessions, photos }: { event: any; sessions: any[]; photos: any[] }) {
   const totalVisits = sessions.length;
-  const selfieSearches = sessions.filter((s) => s.selfie_embedding !== null).length;
   const successfulMatches = sessions.filter((s) => (s.matched_photo_count ?? 0) > 0).length;
-  const matchRate = selfieSearches > 0 ? Math.round((successfulMatches / selfieSearches) * 100) : 0;
+  const matchRate = totalVisits > 0 ? Math.round((successfulMatches / totalVisits) * 100) : 0;
   const totalStorage = photos.reduce((sum, p) => sum + (p.file_size ?? 0), 0);
   const storageGB = (totalStorage / (1024 * 1024 * 1024)).toFixed(2);
   const facesIndexed = photos.filter((p) => p.faces_indexed).length;
@@ -134,7 +129,7 @@ function AnalyticsTab({ event, sessions, photos }: { event: any; sessions: any[]
         {[
           { icon: <ImageIcon className="h-5 w-5 text-blue-500" />, label: "Photos", value: event.photo_count ?? 0, bg: "bg-blue-50" },
           { icon: <Users className="h-5 w-5 text-purple-500" />, label: "Total Visits", value: totalVisits, bg: "bg-purple-50" },
-          { icon: <ScanFace className="h-5 w-5 text-indigo-500" />, label: "Selfie Searches", value: selfieSearches, bg: "bg-indigo-50" },
+          { icon: <ScanFace className="h-5 w-5 text-indigo-500" />, label: "Successful Matches", value: successfulMatches, bg: "bg-indigo-50" },
           { icon: <TrendingUp className="h-5 w-5 text-green-500" />, label: "Match Rate", value: `${matchRate}%`, bg: "bg-green-50" },
         ].map((s) => (
           <div key={s.label} className="rounded-2xl border border-border bg-card p-5">
