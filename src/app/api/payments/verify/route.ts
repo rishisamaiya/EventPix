@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
 
     // Create or update subscription
     const expiresAt = new Date();
-    expiresAt.setFullYear(expiresAt.getFullYear() + 1); // 1 year validity
+    expiresAt.setDate(expiresAt.getDate() + 30); // 30 days validity
 
     const { data: subscription, error: subError } = await admin
       .from("subscriptions")
@@ -103,6 +103,16 @@ export async function POST(request: NextRequest) {
       .update({ subscription_id: subscription.id })
       .eq("razorpay_order_id", razorpay_order_id)
       .eq("user_id", user.id);
+
+    // Retroactively unlock and extend any previously expired events for this host
+    await admin
+      .from("events")
+      .update({
+        status: "active",
+        expires_at: expiresAt.toISOString(),
+      })
+      .eq("host_id", user.id)
+      .eq("status", "expired");
 
     return NextResponse.json({
       success: true,

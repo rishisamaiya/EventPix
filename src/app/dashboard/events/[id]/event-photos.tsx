@@ -25,6 +25,7 @@ export function EventPhotos({
   eventId: string;
   initialPhotos: Photo[];
   isGoogleConnected: boolean;
+  isExpired?: boolean;
 }) {
   const [photos, setPhotos] = useState(initialPhotos);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -111,44 +112,57 @@ export function EventPhotos({
         </span>
       </div>
 
-      {/* Source Tabs */}
-      <div className="mb-4 flex gap-2">
-        <button
-          onClick={() => setSourceTab("drive")}
-          className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
-            sourceTab === "drive"
-              ? "bg-blue-50 text-blue-700 border border-blue-200"
-              : "bg-muted text-muted-foreground hover:bg-muted/80"
-          }`}
-        >
-          <HardDrive className="h-4 w-4" />
-          Google Drive
-        </button>
-        <button
-          onClick={() => setSourceTab("upload")}
-          className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
-            sourceTab === "upload"
-              ? "bg-primary/10 text-primary border border-primary/20"
-              : "bg-muted text-muted-foreground hover:bg-muted/80"
-          }`}
-        >
-          <Upload className="h-4 w-4" />
-          Direct Upload
-          <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-bold text-green-700">
-            10GB FREE
-          </span>
-        </button>
-      </div>
-
-      {/* Source Content */}
-      {sourceTab === "drive" ? (
-        <GoogleDrivePicker
-          eventId={eventId}
-          isConnected={isGoogleConnected}
-          onImportComplete={() => router.refresh()}
-        />
+      {/* Upload Controls */}
+      {isExpired ? (
+        <div className="mb-6 flex flex-col items-center justify-center rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+          <AlertTriangle className="mb-2 h-8 w-8 text-red-500" />
+          <h3 className="mb-1 text-sm font-bold text-red-900">Upload Locked</h3>
+          <p className="text-xs text-red-700 max-w-sm">
+            This event's 30-day Free limit has expired. Please upgrade your plan to unlock your event and resume uploading photos.
+          </p>
+        </div>
       ) : (
-        <PhotoUploader eventId={eventId} onComplete={() => router.refresh()} />
+        <>
+          {/* Source Tabs */}
+          <div className="mb-4 flex gap-2">
+            <button
+              onClick={() => setSourceTab("drive")}
+              className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
+                sourceTab === "drive"
+                  ? "bg-blue-50 text-blue-700 border border-blue-200"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              }`}
+            >
+              <HardDrive className="h-4 w-4" />
+              Google Drive
+            </button>
+            <button
+              onClick={() => setSourceTab("upload")}
+              className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
+                sourceTab === "upload"
+                  ? "bg-primary/10 text-primary border border-primary/20"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              }`}
+            >
+              <Upload className="h-4 w-4" />
+              Direct Upload
+              <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-bold text-green-700">
+                10GB FREE
+              </span>
+            </button>
+          </div>
+
+          {/* Source Content */}
+          {sourceTab === "drive" ? (
+            <GoogleDrivePicker
+              eventId={eventId}
+              isConnected={isGoogleConnected}
+              onImportComplete={() => router.refresh()}
+            />
+          ) : (
+            <PhotoUploader eventId={eventId} onComplete={() => router.refresh()} />
+          )}
+        </>
       )}
 
       {/* Face Indexing — always visible when photos exist */}

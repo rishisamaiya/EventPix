@@ -202,6 +202,8 @@ export function EventDetailClient({ event, photos, sessions, shareUrl }: Props) 
 
   const guestCount = sessions.length;
 
+  const isExpired = event.status === "expired" || (event.expires_at && new Date(event.expires_at).getTime() < Date.now());
+
   const tabs: { id: Tab; label: string; icon: React.ReactNode; count?: number }[] = [
     { id: "overview",  label: "Overview",  icon: <ImageIcon className="h-4 w-4" />, count: event.photo_count ?? 0 },
     { id: "guests",    label: "Guests",    icon: <Users className="h-4 w-4" />, count: guestCount },
@@ -333,6 +335,7 @@ export function EventDetailClient({ event, photos, sessions, shareUrl }: Props) 
             eventId={event.id}
             initialPhotos={photos}
             isGoogleConnected={!!event.cloud_config?.access_token}
+            isExpired={isExpired}
           />
         )}
         {tab === "guests" && <GuestsTab sessions={sessions} />}
