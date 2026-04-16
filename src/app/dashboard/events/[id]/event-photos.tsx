@@ -21,6 +21,7 @@ export function EventPhotos({
   eventId,
   initialPhotos,
   isGoogleConnected,
+  isExpired,
 }: {
   eventId: string;
   initialPhotos: Photo[];
