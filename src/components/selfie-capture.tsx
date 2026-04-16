@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Camera, RotateCcw, Loader2, ScanFace, X, Shield, ChevronRight } from "lucide-react";
 
 interface SelfieCaptureProps {
-  onCapture: (imageData: string, imageElement: HTMLImageElement) => void;
+  onCapture: (imageData: string, imageElement: HTMLImageElement, guestName: string, guestPhone: string) => void;
   onClose: () => void;
   loading?: boolean;
   loadingText?: string;
@@ -24,6 +24,9 @@ export function SelfieCapture({
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   // Consent gate — must be accepted before camera opens (DPDPA biometric consent)
   const [consentGiven, setConsentGiven] = useState(false);
+  const [guestInfoCollected, setGuestInfoCollected] = useState(false);
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
 
   const startCamera = useCallback(async () => {
     try {
@@ -49,13 +52,13 @@ export function SelfieCapture({
   }, [facingMode, stream]);
 
   useEffect(() => {
-    if (!consentGiven) return; // don't open camera until consent given
+    if (!consentGiven || !guestInfoCollected) return; // don't open camera until consent given AND info collected
     startCamera();
     return () => {
       stream?.getTracks().forEach((t) => t.stop());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [facingMode, consentGiven]);
+  }, [facingMode, consentGiven, guestInfoCollected]);
 
   function takeSelfie() {
     if (!videoRef.current || !canvasRef.current) return;
@@ -92,7 +95,7 @@ export function SelfieCapture({
     if (!captured) return;
 
     const img = new Image();
-    img.onload = () => onCapture(captured, img);
+    img.onload = () => onCapture(captured, img, name, phone);
     img.src = captured;
   }
 
@@ -157,6 +160,62 @@ export function SelfieCapture({
             className="mt-3 w-full rounded-xl py-2.5 text-sm text-slate-400 hover:text-slate-600"
           >
             Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Guest Info screen ──
+  if (consentGiven && !guestInfoCollected) {
+    return (
+      <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center">
+        <div className="w-full max-w-sm rounded-t-3xl bg-white p-6 shadow-2xl sm:rounded-3xl">
+          <div className="mb-5 flex items-start justify-between">
+            <h2 className="text-xl font-bold text-slate-900">Sign the Guestbook</h2>
+            <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          
+          <p className="mb-6 text-sm text-slate-500">
+            Before we take your selfie, please let the host know who is viewing!
+          </p>
+          
+          <div className="space-y-4 mb-6">
+            <div>
+              <label className="text-xs font-semibold text-slate-600">Full Name *</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Rahul Sharma"
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-blue-500 focus:bg-white transition"
+                required
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-600">WhatsApp Number <span className="text-slate-400 font-normal">(Optional)</span></label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+91..."
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-blue-500 focus:bg-white transition"
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={() => {
+              if (name.trim().length > 0) {
+                setGuestInfoCollected(true);
+              }
+            }}
+            disabled={name.trim().length === 0}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-sky-400 py-3.5 font-bold text-white shadow-lg transition hover:from-blue-600 hover:to-sky-500 disabled:opacity-50"
+          >
+            Open Camera <Camera className="h-4 w-4" />
           </button>
         </div>
       </div>

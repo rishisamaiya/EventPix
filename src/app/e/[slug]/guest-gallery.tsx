@@ -137,7 +137,9 @@ export function GuestGallery({
 
   async function handleSelfieCapture(
     imageData: string,
-    _imageElement: HTMLImageElement
+    _imageElement: HTMLImageElement,
+    guestName: string,
+    guestPhone: string
   ) {
     setMatchLoading(true);
     setMatchLoadingText("Searching your photos...");
@@ -149,6 +151,8 @@ export function GuestGallery({
         body: JSON.stringify({
           imageData,
           eventId: event.id,
+          guestName,
+          guestPhone,
           threshold: 80,
         }),
       });
