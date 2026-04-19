@@ -16,6 +16,8 @@ import {
   Clock,
   EyeOff,
   Sparkles,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { SelfieCapture } from "@/components/selfie-capture";
 
@@ -105,11 +107,17 @@ export function GuestGallery({
   const [matchLoadingText, setMatchLoadingText] = useState("");
   const [myPhotos, setMyPhotos] = useState<MatchedPhoto[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
-  const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
   const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
   const [selectionMode, setSelectionMode] = useState(false);
   const [cachedAt, setCachedAt] = useState<number | null>(null);
   const [newPhotosAvailable, setNewPhotosAvailable] = useState(false);
+
+  // --- DERIVED STATE ---
+  const isPrivate = event.privacy_mode;
+  const displayPhotos = activeTab === "official" ? photos : myPhotos;
+  const selectedPhoto = selectedIndex !== null ? displayPhotos[selectedIndex] : null;
 
   // Restore previous search from localStorage on mount
   useEffect(() => {
@@ -123,8 +131,49 @@ export function GuestGallery({
         setNewPhotosAvailable(true);
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [event.id, event.photo_count]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    if (selectedIndex === null) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") handleNext();
+      if (e.key === "ArrowLeft") handlePrev();
+      if (e.key === "Escape") setSelectedIndex(null);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedIndex]);
+
+  function handleNext() {
+    setSelectedIndex((prev) => 
+      prev !== null && prev < displayPhotos.length - 1 ? prev + 1 : prev
+    );
+  }
+
+  function handlePrev() {
+    setSelectedIndex((prev) => 
+      prev !== null && prev > 0 ? prev - 1 : prev
+    );
+  }
+
+  // Swipe logic
+  function onTouchStart(e: React.TouchEvent) {
+    setTouchStart(e.targetTouches[0].clientX);
+  }
+
+  function onTouchEnd(e: React.TouchEvent) {
+    if (touchStart === null) return;
+    const touchEnd = e.changedTouches[0].clientX;
+    const diff = touchStart - touchEnd;
+
+    if (diff > 50) handleNext(); // swipe left -> next
+    if (diff < -50) handlePrev(); // swipe right -> prev
+    
+    setTouchStart(null);
+  }
 
   function verifyPin() {
     if (pinInput === event.pin_code) {
@@ -253,8 +302,6 @@ export function GuestGallery({
 
   // --- GALLERY ---
   // In privacy mode, "official" tab is hidden — guests only see their matched photos
-  const isPrivate = event.privacy_mode;
-  const displayPhotos = activeTab === "official" ? photos : myPhotos;
 
   return (
     <div className="min-h-screen bg-white pb-20">
@@ -501,7 +548,7 @@ export function GuestGallery({
                   if (selectionMode) {
                     togglePhotoSelection(photo.id);
                   } else {
-                    setSelectedPhoto(photo);
+                    setSelectedIndex(displayPhotos.indexOf(photo));
                   }
                 }}
                 onContextMenu={(e) => {
@@ -596,19 +643,50 @@ export function GuestGallery({
         </button>
       </div>
 
-      {/* Photo Lightbox */}
       {selectedPhoto && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95"
-          onClick={() => setSelectedPhoto(null)}
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 select-none"
+          onClick={() => setSelectedIndex(null)}
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
         >
+          {/* Close button */}
           <button
-            className="absolute right-4 top-4 z-10 rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20"
-            onClick={() => setSelectedPhoto(null)}
+            className="absolute right-4 top-4 z-[110] rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedIndex(null);
+            }}
           >
             <X className="h-6 w-6" />
           </button>
-          <div className="absolute bottom-6 left-0 right-0 z-10 flex justify-center gap-4">
+
+          {/* Navigation buttons - Desktop/Large screens mostly, but also visible on mobile */}
+          {selectedIndex !== null && selectedIndex > 0 && (
+            <button
+              className="absolute left-4 top-1/2 z-[110] -translate-y-1/2 rounded-full bg-white/10 p-3 text-white transition hover:bg-white/20"
+              onClick={(e) => {
+                e.stopPropagation();
+                handlePrev();
+              }}
+            >
+              <ChevronLeft className="h-8 w-8" />
+            </button>
+          )}
+
+          {selectedIndex !== null && selectedIndex < displayPhotos.length - 1 && (
+            <button
+              className="absolute right-4 top-1/2 z-[110] -translate-y-1/2 rounded-full bg-white/10 p-3 text-white transition hover:bg-white/20"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleNext();
+              }}
+            >
+              <ChevronRight className="h-8 w-8" />
+            </button>
+          )}
+
+          <div className="absolute bottom-6 left-0 right-0 z-[110] flex justify-center gap-4">
             <a
               href={selectedPhoto.source_url}
               download
@@ -621,16 +699,25 @@ export function GuestGallery({
               Download
             </a>
           </div>
-          <img
-            src={
-              selectedPhoto.thumbnail_url
-                ? selectedPhoto.thumbnail_url.replace("size=thumb", "size=large")
-                : selectedPhoto.source_url
-            }
-            alt=""
-            className="max-h-[85vh] max-w-[95vw] object-contain"
-            onClick={(e) => e.stopPropagation()}
-          />
+
+          <div className="relative flex h-full w-full items-center justify-center p-4">
+            <img
+              key={selectedPhoto.id}
+              src={
+                selectedPhoto.thumbnail_url
+                  ? selectedPhoto.thumbnail_url.replace("size=thumb", "size=large")
+                  : selectedPhoto.source_url
+              }
+              alt=""
+              className="pointer-events-none max-h-[85vh] max-w-[95vw] object-contain transition-opacity duration-300"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+
+          {/* Photo count indicator */}
+          <div className="absolute top-6 left-1/2 -translate-x-1/2 text-white/60 text-sm font-medium">
+            {selectedIndex !== null ? selectedIndex + 1 : 0} / {displayPhotos.length}
+          </div>
         </div>
       )}
     </div>
