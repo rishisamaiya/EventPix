@@ -68,7 +68,7 @@ export async function verifyLoginAndGetLink(phone: string, code: string) {
 
     if (error) throw error;
 
-    return { success: true, hashedToken: data.hashed_token, loginUrl: data.properties.action_link };
+    return { success: true, loginUrl: data.properties.action_link };
 
   } catch (error: any) {
     console.error("Login Verification Error:", error);
