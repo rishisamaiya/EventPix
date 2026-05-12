@@ -2,29 +2,42 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Camera, CheckCircle2, Eye, EyeOff } from "lucide-react";
+import { Camera, CheckCircle2, Eye, EyeOff, MessageSquare, Phone, ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { requestSignupOTP, verifySignupOTP } from "./actions";
 
 const inputClass =
   "w-full rounded-lg border border-border bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring/20";
 
+type SignupStep = "info" | "otp";
+
 export default function SignupPage() {
+  // Form State
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  
+  // UI State
+  const [step, setStep] = useState<SignupStep>("info");
+  const [otp, setOtp] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  
   const supabase = createClient();
 
-  // Real-time password match indicator
+  // Password matching logic
   const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword;
   const passwordsMismatch = confirmPassword.length > 0 && password !== confirmPassword;
 
-  async function handleSignup(e: React.FormEvent) {
+  /**
+   * STEP 1: Request OTP via WhatsApp Gateway
+   */
+  async function handleRequestOTP(e: React.FormEvent) {
     e.preventDefault();
     setError("");
 
@@ -32,28 +45,61 @@ export default function SignupPage() {
       setError("Passwords do not match.");
       return;
     }
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+    
+    // Simple phone validation
+    if (phone.length < 10) {
+      setError("Please enter a valid phone number.");
       return;
     }
 
     setLoading(true);
+    
+    const result = await requestSignupOTP(phone);
+    
+    if (result.success) {
+      setStep("otp");
+    } else {
+      setError(result.error || "Failed to send OTP. Please try again.");
+    }
+    
+    setLoading(false);
+  }
 
-    const { error } = await supabase.auth.signUp({
+  /**
+   * STEP 2: Verify OTP and Finalize Signup
+   */
+  async function handleFinalizeSignup(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    // 1. Verify the OTP first
+    const verifyResult = await verifySignupOTP(phone, otp);
+    
+    if (!verifyResult.success) {
+      setError(verifyResult.error || "Invalid verification code.");
+      setLoading(false);
+      return;
+    }
+
+    // 2. If verified, proceed with Supabase Signup
+    const { error: signupError } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { full_name: name },
-        // After clicking confirmation email: /auth/callback exchanges code → /dashboard
+        data: { 
+          full_name: name,
+          phone_number: phone,
+          phone_verified: true
+        },
         emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
       },
     });
 
-    if (error) {
-      setError(error.message);
+    if (signupError) {
+      setError(signupError.message);
       setLoading(false);
     } else {
-      // Show "check your email" screen instead of redirecting
       setEmailSent(true);
     }
   }
@@ -69,50 +115,22 @@ export default function SignupPage() {
             </div>
           </div>
           <h1 className="mb-2 text-2xl font-bold">Check your email</h1>
-          <p className="mb-1 text-muted-foreground">
-            We sent a confirmation link to
-          </p>
+          <p className="mb-1 text-muted-foreground">We sent a confirmation link to</p>
           <p className="mb-6 font-semibold text-foreground">{email}</p>
           <div className="rounded-2xl border border-border bg-card p-6 text-left shadow-sm">
-            <p className="mb-3 text-sm font-medium">What to do next:</p>
-            <ol className="space-y-2 text-sm text-muted-foreground">
-              <li className="flex items-start gap-2">
-                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">1</span>
-                Open your email inbox
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">2</span>
-                Click the <strong>"Confirm your email"</strong> link from EventPix
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">3</span>
-                You'll be signed in and taken to your dashboard
-              </li>
-            </ol>
+            <p className="mb-3 text-sm font-medium text-foreground">One last step:</p>
+            <p className="text-sm text-muted-foreground">Click the confirmation link in your email to activate your account. Your phone number <strong>{phone}</strong> has been verified.</p>
           </div>
-          <p className="mt-6 text-sm text-muted-foreground">
-            Didn't receive it? Check your spam folder or{" "}
-            <button
-              onClick={() => setEmailSent(false)}
-              className="font-medium text-primary hover:underline"
-            >
-              try a different email
-            </button>
-          </p>
-          <p className="mt-4 text-sm text-muted-foreground">
-            Already confirmed?{" "}
-            <Link href="/login" className="font-medium text-primary hover:underline">
-              Sign in
-            </Link>
+          <p className="mt-8 text-sm text-muted-foreground">
+            <Link href="/login" className="font-medium text-primary hover:underline">Return to Login</Link>
           </p>
         </div>
       </div>
     );
   }
 
-  // ── Signup form ──────────────────────────────────────────────────────────
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4 py-12">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <Link href="/" className="mb-4 inline-flex items-center gap-2">
@@ -121,121 +139,157 @@ export default function SignupPage() {
             </div>
             <span className="text-2xl font-bold">EventPix</span>
           </Link>
-          <p className="mt-2 text-muted-foreground">
-            Create your account and start sharing event photos.
-          </p>
+          <h1 className="text-xl font-bold mt-2">Create your account</h1>
+          <p className="text-sm text-muted-foreground mt-1">Start sharing event photos in seconds.</p>
         </div>
 
         <div className="rounded-2xl border border-border bg-card p-8 shadow-sm">
-          <form onSubmit={handleSignup} className="space-y-4">
-            {error && (
-              <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-                {error}
-              </div>
-            )}
-
-            {/* Full Name */}
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">Full Name</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                className={inputClass}
-                placeholder="Anurag Samaiya"
-              />
+          {error && (
+            <div className="mb-6 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+              {error}
             </div>
+          )}
 
-            {/* Email */}
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className={inputClass}
-                placeholder="you@example.com"
-              />
-            </div>
-
-            {/* Password */}
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">Password</label>
-              <div className="relative">
+          {step === "info" ? (
+            /* --- STEP 1: Basic Info & Phone --- */
+            <form onSubmit={handleRequestOTP} className="space-y-4">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">Full Name</label>
                 <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   required
-                  minLength={8}
-                  className={inputClass + " pr-10"}
-                  placeholder="Min 8 characters"
+                  className={inputClass}
+                  placeholder="Anurag Samaiya"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  tabIndex={-1}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
               </div>
-              {/* Password strength hint */}
-              {password.length > 0 && password.length < 8 && (
-                <p className="mt-1 text-xs text-amber-600">At least 8 characters required</p>
-              )}
-            </div>
 
-            {/* Confirm Password */}
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">Confirm Password</label>
-              <div className="relative">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">Email</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className={inputClass}
+                  placeholder="you@example.com"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">WhatsApp Number</label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">+91</span>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    required
+                    className={inputClass + " pl-12"}
+                    placeholder="9876543210"
+                  />
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">Verification code will be sent to this number.</p>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">Password</label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={8}
+                    className={inputClass + " pr-10"}
+                    placeholder="Min 8 characters"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">Confirm Password</label>
                 <input
                   type={showConfirm ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
-                  className={`${inputClass} pr-10 ${
-                    passwordsMismatch
-                      ? "border-red-400 focus:border-red-400 focus:ring-red-100"
-                      : passwordsMatch
-                      ? "border-green-400 focus:border-green-400 focus:ring-green-100"
-                      : ""
-                  }`}
-                  placeholder="Re-enter your password"
+                  className={`${inputClass} ${passwordsMismatch ? 'border-red-500' : ''}`}
+                  placeholder="Re-enter password"
                 />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading || passwordsMismatch}
+                className="w-full flex items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50 mt-2"
+              >
+                {loading ? "Sending..." : "Verify Phone & Signup"}
+                <MessageSquare size={16} />
+              </button>
+            </form>
+          ) : (
+            /* --- STEP 2: OTP Verification --- */
+            <form onSubmit={handleFinalizeSignup} className="space-y-6">
+              <div className="text-center">
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <Phone size={24} />
+                </div>
+                <h2 className="text-lg font-bold">Verify your phone</h2>
+                <p className="text-sm text-muted-foreground px-2">
+                  We sent a 6-digit code to <strong>+91 {phone}</strong> via WhatsApp.
+                </p>
+              </div>
+
+              <div>
+                <input
+                  type="text"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  required
+                  maxLength={6}
+                  autoFocus
+                  className="w-full text-center text-2xl font-bold tracking-[0.5em] rounded-lg border border-border bg-background px-3.5 py-3 outline-none focus:border-primary"
+                  placeholder="000000"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  type="submit"
+                  disabled={loading || otp.length < 6}
+                  className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
+                >
+                  {loading ? "Verifying..." : "Confirm & Create Account"}
+                </button>
+                
                 <button
                   type="button"
-                  onClick={() => setShowConfirm((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  tabIndex={-1}
+                  onClick={() => setStep("info")}
+                  disabled={loading}
+                  className="w-full flex items-center justify-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground py-2"
                 >
-                  {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  <ArrowLeft size={14} />
+                  Change number
                 </button>
               </div>
-              {passwordsMismatch && (
-                <p className="mt-1 text-xs text-red-500">Passwords do not match</p>
-              )}
-              {passwordsMatch && (
-                <p className="mt-1 flex items-center gap-1 text-xs text-green-600">
-                  <CheckCircle2 className="h-3.5 w-3.5" /> Passwords match
-                </p>
-              )}
-            </div>
 
-            <button
-              type="submit"
-              disabled={loading || passwordsMismatch}
-              className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
-            >
-              {loading ? "Creating account..." : "Create Account"}
-            </button>
-          </form>
+              <p className="text-center text-xs text-muted-foreground mt-4">
+                Didn't get the code? <button type="button" className="text-primary font-medium hover:underline">Resend</button>
+              </p>
+            </form>
+          )}
         </div>
 
-        <p className="mt-6 text-center text-sm text-muted-foreground">
+        <p className="mt-8 text-center text-sm text-muted-foreground">
           Already have an account?{" "}
           <Link href="/login" className="font-medium text-primary hover:underline">
             Sign in
