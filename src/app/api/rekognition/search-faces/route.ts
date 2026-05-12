@@ -12,7 +12,7 @@ const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 // Body: { imageData: string (base64 data URL), eventId: string, threshold?: number }
 // Returns matching photos from this event.
 export async function POST(request: NextRequest) {
-  const { imageData, eventId, threshold = 80 } = await request.json();
+  const { imageData, eventId, guestName, guestPhone, threshold = 80 } = await request.json();
 
   if (!imageData || !eventId) {
     return NextResponse.json({ error: "Missing imageData or eventId" }, { status: 400 });
@@ -63,6 +63,16 @@ export async function POST(request: NextRequest) {
 
     // Cache result to avoid re-billing on repeat submits
     _searchCache.set(cacheKey, { photos: result, expiresAt: Date.now() + CACHE_TTL_MS });
+
+    // IMPORTANT: Log the guest session so the host can see it in their Analytics dashboard
+    if (guestName) {
+      await supabase.from("guest_sessions").insert({
+        event_id: eventId,
+        guest_name: guestName,
+        phone: guestPhone || null,
+        matched_photo_count: result.length,
+      });
+    }
 
     return NextResponse.json({ photos: result });
   } catch (err: any) {

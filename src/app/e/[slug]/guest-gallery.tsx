@@ -14,6 +14,10 @@ import {
   Check,
   RefreshCw,
   Clock,
+  EyeOff,
+  Sparkles,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { SelfieCapture } from "@/components/selfie-capture";
 
@@ -34,6 +38,7 @@ type Event = {
   pin_code: string | null;
   photo_count: number;
   allow_download: boolean;
+  privacy_mode: boolean;
 };
 
 // What we persist in localStorage
@@ -102,11 +107,17 @@ export function GuestGallery({
   const [matchLoadingText, setMatchLoadingText] = useState("");
   const [myPhotos, setMyPhotos] = useState<MatchedPhoto[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
-  const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
   const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
   const [selectionMode, setSelectionMode] = useState(false);
   const [cachedAt, setCachedAt] = useState<number | null>(null);
   const [newPhotosAvailable, setNewPhotosAvailable] = useState(false);
+
+  // --- DERIVED STATE ---
+  const isPrivate = event.privacy_mode;
+  const displayPhotos = activeTab === "official" ? photos : myPhotos;
+  const selectedPhoto = selectedIndex !== null ? displayPhotos[selectedIndex] : null;
 
   // Restore previous search from localStorage on mount
   useEffect(() => {
@@ -120,8 +131,49 @@ export function GuestGallery({
         setNewPhotosAvailable(true);
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [event.id, event.photo_count]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    if (selectedIndex === null) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") handleNext();
+      if (e.key === "ArrowLeft") handlePrev();
+      if (e.key === "Escape") setSelectedIndex(null);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedIndex]);
+
+  function handleNext() {
+    setSelectedIndex((prev) => 
+      prev !== null && prev < displayPhotos.length - 1 ? prev + 1 : prev
+    );
+  }
+
+  function handlePrev() {
+    setSelectedIndex((prev) => 
+      prev !== null && prev > 0 ? prev - 1 : prev
+    );
+  }
+
+  // Swipe logic
+  function onTouchStart(e: React.TouchEvent) {
+    setTouchStart(e.targetTouches[0].clientX);
+  }
+
+  function onTouchEnd(e: React.TouchEvent) {
+    if (touchStart === null) return;
+    const touchEnd = e.changedTouches[0].clientX;
+    const diff = touchStart - touchEnd;
+
+    if (diff > 50) handleNext(); // swipe left -> next
+    if (diff < -50) handlePrev(); // swipe right -> prev
+    
+    setTouchStart(null);
+  }
 
   function verifyPin() {
     if (pinInput === event.pin_code) {
@@ -134,7 +186,9 @@ export function GuestGallery({
 
   async function handleSelfieCapture(
     imageData: string,
-    _imageElement: HTMLImageElement
+    _imageElement: HTMLImageElement,
+    guestName: string,
+    guestPhone: string
   ) {
     setMatchLoading(true);
     setMatchLoadingText("Searching your photos...");
@@ -146,6 +200,8 @@ export function GuestGallery({
         body: JSON.stringify({
           imageData,
           eventId: event.id,
+          guestName,
+          guestPhone,
           threshold: 80,
         }),
       });
@@ -245,7 +301,7 @@ export function GuestGallery({
   }
 
   // --- GALLERY ---
-  const displayPhotos = activeTab === "official" ? photos : myPhotos;
+  // In privacy mode, "official" tab is hidden — guests only see their matched photos
 
   return (
     <div className="min-h-screen bg-white pb-20">
@@ -314,19 +370,21 @@ export function GuestGallery({
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs — hide "Official" tab in privacy mode */}
       <div className="sticky top-0 z-40 flex items-center justify-between border-b border-gray-100 bg-white px-4">
         <div className="flex">
-          <button
-            onClick={() => setActiveTab("official")}
-            className={`border-b-2 px-4 py-3 text-sm font-semibold transition ${
-              activeTab === "official"
-                ? "border-black text-black"
-                : "border-transparent text-gray-400 hover:text-gray-600"
-            }`}
-          >
-            OFFICIAL
-          </button>
+          {!isPrivate && (
+            <button
+              onClick={() => setActiveTab("official")}
+              className={`border-b-2 px-4 py-3 text-sm font-semibold transition ${
+                activeTab === "official"
+                  ? "border-black text-black"
+                  : "border-transparent text-gray-400 hover:text-gray-600"
+              }`}
+            >
+              ALL PHOTOS
+            </button>
+          )}
           <button
             onClick={() => {
               setActiveTab("my");
@@ -356,9 +414,11 @@ export function GuestGallery({
               <Camera className="h-5 w-5" />
             </button>
           )}
-          <button className="p-2 text-gray-400 hover:text-gray-600">
-            <Search className="h-5 w-5" />
-          </button>
+          {!isPrivate && (
+            <button className="p-2 text-gray-400 hover:text-gray-600">
+              <Search className="h-5 w-5" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -395,7 +455,55 @@ export function GuestGallery({
 
       {/* Gallery Grid */}
       <div className="px-0.5 py-0.5">
-        {activeTab === "my" && !hasSearched ? (
+
+        {/* Privacy mode: blurred grid with selfie prompt overlay */}
+        {isPrivate && !hasSearched && (
+          <div className="relative">
+            {/* Blurred thumbnail grid (shows photo count as visual hint) */}
+            {photos.length > 0 && (
+              <div className="grid grid-cols-3 gap-0.5 select-none" aria-hidden>
+                {photos.slice(0, 9).map((photo) => (
+                  <div key={photo.id} className="relative aspect-square overflow-hidden bg-gray-100">
+                    <img
+                      src={photo.thumbnail_url || photo.source_url}
+                      alt=""
+                      className="h-full w-full object-cover blur-xl scale-110 brightness-75"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <EyeOff className="h-5 w-5 text-white/50" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* Centered CTA overlay */}
+            <div className={`${photos.length > 0 ? "absolute inset-0" : "py-20"} flex flex-col items-center justify-center px-6`}>
+              <div className="rounded-2xl bg-white/95 p-6 text-center shadow-2xl backdrop-blur-sm max-w-xs w-full">
+                <div className="mb-3 flex justify-center">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                    <Sparkles className="h-8 w-8 text-primary" />
+                  </div>
+                </div>
+                <h3 className="mb-1 text-base font-bold text-gray-900">
+                  {event.photo_count} photos are waiting for you
+                </h3>
+                <p className="mb-4 text-xs text-gray-500">
+                  This is a private gallery. Take a selfie to reveal the photos you appear in.
+                </p>
+                <button
+                  onClick={() => setShowSelfie(true)}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 font-semibold text-white transition hover:bg-primary/90"
+                >
+                  <ScanFace className="h-5 w-5" />
+                  Find My Photos
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {(!isPrivate || hasSearched) && activeTab === "my" && !hasSearched ? (
           <div className="flex flex-col items-center py-20">
             <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-indigo-50">
               <ScanFace className="h-10 w-10 text-primary" />
@@ -413,7 +521,7 @@ export function GuestGallery({
               Take a Selfie
             </button>
           </div>
-        ) : activeTab === "my" && hasSearched && myPhotos.length === 0 ? (
+        ) : (!isPrivate || hasSearched) && activeTab === "my" && hasSearched && myPhotos.length === 0 ? (
           <div className="flex flex-col items-center py-20">
             <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-gray-100">
               <ScanFace className="h-10 w-10 text-gray-400" />
@@ -431,7 +539,7 @@ export function GuestGallery({
               Try Again
             </button>
           </div>
-        ) : displayPhotos.length > 0 ? (
+        ) : (!isPrivate || hasSearched) && displayPhotos.length > 0 ? (
           <div className="grid grid-cols-3 gap-0.5">
             {displayPhotos.map((photo) => (
               <button
@@ -440,7 +548,7 @@ export function GuestGallery({
                   if (selectionMode) {
                     togglePhotoSelection(photo.id);
                   } else {
-                    setSelectedPhoto(photo);
+                    setSelectedIndex(displayPhotos.indexOf(photo));
                   }
                 }}
                 onContextMenu={(e) => {
@@ -535,19 +643,50 @@ export function GuestGallery({
         </button>
       </div>
 
-      {/* Photo Lightbox */}
       {selectedPhoto && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95"
-          onClick={() => setSelectedPhoto(null)}
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 select-none"
+          onClick={() => setSelectedIndex(null)}
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
         >
+          {/* Close button */}
           <button
-            className="absolute right-4 top-4 z-10 rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20"
-            onClick={() => setSelectedPhoto(null)}
+            className="absolute right-4 top-4 z-[110] rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedIndex(null);
+            }}
           >
             <X className="h-6 w-6" />
           </button>
-          <div className="absolute bottom-6 left-0 right-0 z-10 flex justify-center gap-4">
+
+          {/* Navigation buttons - Desktop/Large screens mostly, but also visible on mobile */}
+          {selectedIndex !== null && selectedIndex > 0 && (
+            <button
+              className="absolute left-4 top-1/2 z-[110] -translate-y-1/2 rounded-full bg-white/10 p-3 text-white transition hover:bg-white/20"
+              onClick={(e) => {
+                e.stopPropagation();
+                handlePrev();
+              }}
+            >
+              <ChevronLeft className="h-8 w-8" />
+            </button>
+          )}
+
+          {selectedIndex !== null && selectedIndex < displayPhotos.length - 1 && (
+            <button
+              className="absolute right-4 top-1/2 z-[110] -translate-y-1/2 rounded-full bg-white/10 p-3 text-white transition hover:bg-white/20"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleNext();
+              }}
+            >
+              <ChevronRight className="h-8 w-8" />
+            </button>
+          )}
+
+          <div className="absolute bottom-6 left-0 right-0 z-[110] flex justify-center gap-4">
             <a
               href={selectedPhoto.source_url}
               download
@@ -560,16 +699,25 @@ export function GuestGallery({
               Download
             </a>
           </div>
-          <img
-            src={
-              selectedPhoto.thumbnail_url
-                ? selectedPhoto.thumbnail_url.replace("size=thumb", "size=large")
-                : selectedPhoto.source_url
-            }
-            alt=""
-            className="max-h-[85vh] max-w-[95vw] object-contain"
-            onClick={(e) => e.stopPropagation()}
-          />
+
+          <div className="relative flex h-full w-full items-center justify-center p-4">
+            <img
+              key={selectedPhoto.id}
+              src={
+                selectedPhoto.thumbnail_url
+                  ? selectedPhoto.thumbnail_url.replace("size=thumb", "size=large")
+                  : selectedPhoto.source_url
+              }
+              alt=""
+              className="pointer-events-none max-h-[85vh] max-w-[95vw] object-contain transition-opacity duration-300"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+
+          {/* Photo count indicator */}
+          <div className="absolute top-6 left-1/2 -translate-x-1/2 text-white/60 text-sm font-medium">
+            {selectedIndex !== null ? selectedIndex + 1 : 0} / {displayPhotos.length}
+          </div>
         </div>
       )}
     </div>

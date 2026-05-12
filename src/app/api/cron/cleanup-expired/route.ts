@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
       await deleteCollection(event.id);
       await supabase.from("face_embeddings").delete().eq("event_id", event.id);
       await supabase.from("photos").delete().eq("event_id", event.id);
-      await supabase.from("events").update({ status: "deleted" }).eq("id", event.id);
+      await supabase.from("events").update({ photo_count: 0, cover_url: null }).eq("id", event.id);
       results.push({ id: event.id, name: event.name, status: "cleaned" });
     } catch (err: any) {
       results.push({ id: event.id, name: event.name, status: "error", error: err.message });
