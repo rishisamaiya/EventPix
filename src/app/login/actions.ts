@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@supabase/supabase-js";
+import { createClient as createServerClient } from "@/lib/supabase/server";
 import { gateway } from "@/lib/gateway";
 
 // Admin client for user lookup and link generation
@@ -59,19 +60,29 @@ export async function verifyLoginAndGetLink(phone: string, code: string) {
       return { success: false, error: "User session could not be created." };
     }
 
-    // 3. Generate a Magic Link for this user
+    // 3. Generate a Token Hash for this user
     const { data, error } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
-      email: user.email,
-      options: { redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard` }
+      email: user.email
     });
 
     if (error) throw error;
 
-    return { success: true, loginUrl: data.properties.action_link };
+    // 4. VERIFY THE TOKEN IMMEDIATELY ON THE SERVER
+    // This sets the session cookies in the current request
+    const supabase = await createServerClient();
+    const { error: verifyError } = await supabase.auth.verifyOtp({
+      token_hash: data.properties.hashed_token,
+      type: 'magiclink'
+    });
+
+    if (verifyError) throw verifyError;
+
+    // 5. SUCCESS! Tell the client to go to the dashboard
+    return { success: true, redirect: '/dashboard' };
 
   } catch (error: any) {
     console.error("Login Verification Error:", error);
-    return { success: false, error: "Verification failed" };
+    return { success: false, error: "Verification failed. Please try again." };
   }
 }
