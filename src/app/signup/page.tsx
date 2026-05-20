@@ -30,6 +30,7 @@ export default function SignupPage() {
   const [emailSent, setEmailSent] = useState(false);
   
   const supabase = createClient();
+  const router = useRouter();
 
   // Password matching logic
   const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword;
@@ -63,7 +64,8 @@ export default function SignupPage() {
       setError(result.error || "Failed to send OTP. Please try again.");
     }
     
-  const router = useRouter();
+    setLoading(false);
+  }
 
   /**
    * STEP 2: Verify OTP and Finalize Signup
