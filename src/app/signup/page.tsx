@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Camera, CheckCircle2, Eye, EyeOff, MessageSquare, Phone, ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { requestSignupOTP, verifySignupOTP } from "./actions";
+import { requestSignupOTP, finalizeSignup } from "./actions";
 
 const inputClass =
   "w-full rounded-lg border border-border bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring/20";
@@ -62,8 +63,7 @@ export default function SignupPage() {
       setError(result.error || "Failed to send OTP. Please try again.");
     }
     
-    setLoading(false);
-  }
+  const router = useRouter();
 
   /**
    * STEP 2: Verify OTP and Finalize Signup
@@ -73,34 +73,19 @@ export default function SignupPage() {
     setError("");
     setLoading(true);
 
-    // 1. Verify the OTP first
-    const verifyResult = await verifySignupOTP(phone, otp);
-    
-    if (!verifyResult.success) {
-      setError(verifyResult.error || "Invalid verification code.");
-      setLoading(false);
-      return;
-    }
-
-    // 2. If verified, proceed with Supabase Signup
-    const { error: signupError } = await supabase.auth.signUp({
+    const result = await finalizeSignup({
+      name,
       email,
+      phone,
       password,
-      options: {
-        data: { 
-          full_name: name,
-          phone_number: phone,
-          phone_verified: true
-        },
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
-      },
+      otp
     });
 
-    if (signupError) {
-      setError(signupError.message);
-      setLoading(false);
+    if (result.success && result.redirect) {
+      router.push(result.redirect);
     } else {
-      setEmailSent(true);
+      setError(result.error || "Signup failed. Please try again.");
+      setLoading(false);
     }
   }
 
